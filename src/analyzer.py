@@ -155,7 +155,11 @@ class PortfolioAnalyzer:
         price_data = {}
         for symbol in symbols:
             hist = StockDataFetcher.get_price_history(symbol, days=days)
-            price_data[symbol] = hist['Close']
+            if len(hist) > 0:
+                price_data[symbol] = hist['Close']
+
+        if len(price_data) == 0:
+            return pd.DataFrame()
 
         df = pd.DataFrame(price_data)
         return df.corr()
@@ -167,19 +171,28 @@ class PortfolioAnalyzer:
 
         metrics = []
         for symbol in symbols:
-            hist = StockDataFetcher.get_price_history(symbol, days=days)
-            returns = hist['Close'].pct_change().dropna()
+            try:
+                hist = StockDataFetcher.get_price_history(symbol, days=days)
+                if len(hist) < 2:
+                    continue
 
-            volatility = returns.std() * np.sqrt(252)  # Annualized
-            sharpe = returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0
-            max_drawdown = (hist['Close'].cummax() - hist['Close']).max() / hist['Close'].cummax().max()
+                returns = hist['Close'].pct_change().dropna()
+                if len(returns) == 0:
+                    continue
 
-            metrics.append({
-                'symbol': symbol,
-                'volatility': volatility,
-                'sharpe_ratio': sharpe,
-                'max_drawdown': max_drawdown,
-                'avg_return': returns.mean() * 252
-            })
+                std_dev = float(returns.std())
+                volatility = std_dev * np.sqrt(252) if std_dev > 0 else 0
+                sharpe = (float(returns.mean()) / std_dev * np.sqrt(252)) if std_dev > 0 else 0
+                max_dd = float((hist['Close'].cummax() - hist['Close']).max() / hist['Close'].cummax().max())
 
-        return pd.DataFrame(metrics)
+                metrics.append({
+                    'symbol': symbol,
+                    'volatility': volatility,
+                    'sharpe_ratio': sharpe,
+                    'max_drawdown': max_dd,
+                    'avg_return': float(returns.mean()) * 252
+                })
+            except Exception as e:
+                continue
+
+        return pd.DataFrame(metrics) if metrics else pd.DataFrame()
