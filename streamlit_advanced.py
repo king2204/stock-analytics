@@ -18,28 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ============= AUTO REFRESH - REAL-TIME LIKE YAHOO FINANCE =============
-st.markdown("""
-<meta http-equiv="refresh" content="30">
-""", unsafe_allow_html=True)
-
-# ============= CUSTOM STYLING =============
-st.markdown("""
-    <style>
-    .main { background-color: #f0f2f6; }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    h1 { color: #1f2937; margin-bottom: 0.5rem; }
-    h2 { color: #1f77b4; margin-top: 1.5rem; margin-bottom: 1rem; }
-    </style>
-""", unsafe_allow_html=True)
-
-# ============= SIDEBAR =============
+# ============= SIDEBAR - SET REFRESH INTERVAL FIRST =============
 st.sidebar.title("⚙️ Dashboard Controls")
 
 time_option = st.sidebar.selectbox(
@@ -72,6 +51,28 @@ show_correlation = st.sidebar.checkbox("🔗 Correlation", True)
 show_risk = st.sidebar.checkbox("⚠️ Risk Analysis", True)
 show_invested = st.sidebar.checkbox("📊 Invested vs Current", True)
 show_concentration = st.sidebar.checkbox("🎯 Concentration", True)
+
+
+# ============= AUTO REFRESH - REAL-TIME LIKE YAHOO FINANCE =============
+st.markdown(f"""
+<meta http-equiv="refresh" content="{refresh_interval}">
+""", unsafe_allow_html=True)
+
+# ============= CUSTOM STYLING =============
+st.markdown("""
+    <style>
+    .main { background-color: #f0f2f6; }
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    h1 { color: #1f2937; margin-bottom: 0.5rem; }
+    h2 { color: #1f77b4; margin-top: 1.5rem; margin-bottom: 1rem; }
+    </style>
+""", unsafe_allow_html=True)
 
 # ============= LOAD DATA =============
 @st.cache_data(ttl=0)
