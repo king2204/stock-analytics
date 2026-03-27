@@ -152,16 +152,27 @@ class PortfolioAnalyzer:
         if symbols is None:
             symbols = self.portfolio.get_symbols()
 
-        price_data = {}
+        price_data = []
         for symbol in symbols:
             hist = StockDataFetcher.get_price_history(symbol, days=days)
-            if len(hist) > 0:
-                price_data[symbol] = hist['Close']
+            if len(hist) > 1:  # Need at least 2 data points
+                df_temp = hist[['Close']].copy()
+                df_temp.columns = [symbol]
+                df_temp = df_temp.reset_index(drop=True)
+                price_data.append(df_temp)
 
         if len(price_data) == 0:
             return pd.DataFrame()
 
-        df = pd.DataFrame(price_data)
+        # Concatenate all series by index position
+        df = pd.concat(price_data, axis=1)
+        
+        # Handle rows with NaN values (when series lengths differ)
+        df = df.dropna()
+        
+        if len(df) < 2:
+            return pd.DataFrame()
+        
         return df.corr()
 
     def calculate_risk_metrics(self, symbols: list = None, days: int = 180) -> pd.DataFrame:
