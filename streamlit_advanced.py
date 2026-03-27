@@ -261,8 +261,9 @@ if is_real_time and len(holdings) > 0:
     if show_invested:
         col1, col2 = st.columns(2)
         with col1:
+            invested = holdings['shares'] * holdings['purchase_price']
             fig_comp = go.Figure(data=[
-                go.Bar(x=holdings['symbol'], y=holdings['total_invested'],
+                go.Bar(x=holdings['symbol'], y=invested,
                        name='Invested', marker=dict(color='#1f77b4')),
                 go.Bar(x=holdings['symbol'], y=holdings['current_value'],
                        name='Current', marker=dict(color='#ff7f0e'))
