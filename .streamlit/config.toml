@@ -1,0 +1,23 @@
+[server]
+port = 8501
+headless = true
+runOnSave = true
+logger.level = "error"
+maxUploadSize = 200
+
+[client]
+showErrorDetails = false
+toolbarMode = "viewer"
+
+[logger]
+level = "error"
+
+[theme]
+primaryColor = "#0066cc"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#31333F"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
