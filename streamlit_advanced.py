@@ -53,8 +53,21 @@ refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
 
-show_correlation = st.sidebar.checkbox("📊 Show Correlation", True)
-show_risk = st.sidebar.checkbox("⚠️ Show Risk Analysis", True)
+# Chart toggles
+st.sidebar.markdown("---")
+st.sidebar.markdown("**📊 Chart Display Options**")
+
+# Main charts
+show_allocation = st.sidebar.checkbox("🥧 Asset Allocation", True)
+show_performance = st.sidebar.checkbox("📈 Performance (%)", True)
+show_current_value = st.sidebar.checkbox("💰 Current Value", True)
+show_gain_loss = st.sidebar.checkbox("💵 Gain/Loss ($)", True)
+
+# Analysis charts
+show_correlation = st.sidebar.checkbox("🔗 Correlation", True)
+show_risk = st.sidebar.checkbox("⚠️ Risk Analysis", True)
+show_invested = st.sidebar.checkbox("📊 Invested vs Current", True)
+show_concentration = st.sidebar.checkbox("🎯 Concentration", True)
 
 # ============= LOAD DATA =============
 @st.cache_data(ttl=0)
@@ -149,91 +162,150 @@ if is_real_time and len(holdings) > 0:
 
     col1, col2 = st.columns(2)
 
-    # Pie Chart
-    with col1:
-        fig_pie = go.Figure(data=[go.Pie(
-            labels=allocation['symbol'],
-            values=allocation['current_value'],
-            textposition='inside',
-            textinfo='label+percent',
-            marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
-            hovertemplate='<b>%{label}</b><br>$%{value:,.0f}<extra></extra>'
-        )])
-        fig_pie.update_layout(
-            title="Asset Allocation",
-            height=450,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
+    # Pie Chart - Asset Allocation
+    if show_allocation:
+        with col1:
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=allocation['symbol'],
+                values=allocation['current_value'],
+                textposition='inside',
+                textinfo='label+percent',
+                marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
+                hovertemplate='<b>%{label}</b><br>$%{value:,.0f}<extra></extra>'
+            )])
+            fig_pie.update_layout(
+                title="Asset Allocation",
+                height=450,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
 
-    # Performance Bar
-    with col2:
-        colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_percent']]
-        fig_bar = go.Figure(data=[go.Bar(
-            x=holdings['symbol'],
-            y=holdings['gain_loss_percent'],
-            marker=dict(color=colors),
-            text=[f"{x:.1f}%" for x in holdings['gain_loss_percent']],
-            textposition='outside',
-            hovertemplate='<b>%{x}</b><br>%{y:.2f}%<extra></extra>'
-        )])
-        fig_bar.update_layout(
-            title="Performance by Stock (%)",
-            xaxis_title="Stock",
-            yaxis_title="Return %",
-            height=450,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        fig_bar.add_hline(y=0, line_dash="dash", line_color="gray")
-        st.plotly_chart(fig_bar, use_container_width=True)
+    # Performance Bar - By Stock %
+    if show_performance:
+        col_perf = col2 if show_allocation else col1
+        with col_perf:
+            colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_percent']]
+            fig_bar = go.Figure(data=[go.Bar(
+                x=holdings['symbol'],
+                y=holdings['gain_loss_percent'],
+                marker=dict(color=colors),
+                text=[f"{x:.1f}%" for x in holdings['gain_loss_percent']],
+                textposition='outside',
+                hovertemplate='<b>%{x}</b><br>%{y:.2f}%<extra></extra>'
+            )])
+            fig_bar.update_layout(
+                title="Performance by Stock (%)",
+                xaxis_title="Stock",
+                yaxis_title="Return %",
+                height=450,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            fig_bar.add_hline(y=0, line_dash="dash", line_color="gray")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
-    st.divider()
+    if show_allocation or show_performance:
+        st.divider()
 
     col1, col2 = st.columns(2)
 
     # Current Value Chart
-    with col1:
-        fig_val = go.Figure(data=[go.Bar(
-            x=holdings['symbol'],
-            y=holdings['current_value'],
-            marker=dict(color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
-            text=[f"${x:,.0f}" for x in holdings['current_value']],
-            textposition='outside',
-            hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
-        )])
-        fig_val.update_layout(
-            title="Current Value by Stock",
-            xaxis_title="Stock",
-            yaxis_title="Value ($)",
-            height=400,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        st.plotly_chart(fig_val, use_container_width=True)
+    if show_current_value:
+        with col1:
+            fig_val = go.Figure(data=[go.Bar(
+                x=holdings['symbol'],
+                y=holdings['current_value'],
+                marker=dict(color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
+                text=[f"${x:,.0f}" for x in holdings['current_value']],
+                textposition='outside',
+                hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
+            )])
+            fig_val.update_layout(
+                title="Current Value by Stock",
+                xaxis_title="Stock",
+                yaxis_title="Value ($)",
+                height=400,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig_val, use_container_width=True)
 
     # Gain/Loss Chart
-    with col2:
-        colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_dollars']]
-        fig_gl = go.Figure(data=[go.Bar(
-            x=holdings['symbol'],
-            y=holdings['gain_loss_dollars'],
-            marker=dict(color=colors),
-            text=[f"${x:,.0f}" for x in holdings['gain_loss_dollars']],
-            textposition='outside',
-            hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
-        )])
-        fig_gl.update_layout(
-            title="Gain/Loss by Stock ($)",
-            xaxis_title="Stock",
-            yaxis_title="Gain/Loss ($)",
-            height=400,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        fig_gl.add_hline(y=0, line_dash="dash", line_color="gray")
-        st.plotly_chart(fig_gl, use_container_width=True)
+    if show_gain_loss:
+        with col2:
+            colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_dollars']]
+            fig_gl = go.Figure(data=[go.Bar(
+                x=holdings['symbol'],
+                y=holdings['gain_loss_dollars'],
+                marker=dict(color=colors),
+                text=[f"${x:,.0f}" for x in holdings['gain_loss_dollars']],
+                textposition='outside',
+                hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
+            )])
+            fig_gl.update_layout(
+                title="Gain/Loss by Stock ($)",
+                xaxis_title="Stock",
+                yaxis_title="Gain/Loss ($)",
+                height=400,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            fig_gl.add_hline(y=0, line_dash="dash", line_color="gray")
+            st.plotly_chart(fig_gl, use_container_width=True)
+
+    if show_current_value or show_gain_loss:
+        st.divider()
+
+    # Invested vs Current Value
+    if show_invested:
+        col1, col2 = st.columns(2)
+        with col1:
+            fig_comp = go.Figure(data=[
+                go.Bar(x=holdings['symbol'], y=holdings['total_invested'],
+                       name='Invested', marker=dict(color='#1f77b4')),
+                go.Bar(x=holdings['symbol'], y=holdings['current_value'],
+                       name='Current', marker=dict(color='#ff7f0e'))
+            ])
+            fig_comp.update_layout(
+                title="Invested vs Current Value",
+                xaxis_title="Stock",
+                yaxis_title="Value ($)",
+                barmode='group',
+                height=400,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig_comp, use_container_width=True)
+
+        # Concentration chart
+        if show_concentration:
+            with col2:
+                concentration = (holdings['current_value'] / summary['total_current_value'] * 100)
+                colors_conc = ['#d62728' if x > 30 else '#ff7f0e' if x > 20 else '#2ca02c'
+                              for x in concentration]
+                fig_conc = go.Figure(data=[go.Bar(
+                    x=holdings['symbol'],
+                    y=concentration,
+                    marker=dict(color=colors_conc),
+                    text=[f"{x:.1f}%" for x in concentration],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>%{y:.1f}% of portfolio<extra></extra>'
+                )])
+                fig_conc.update_layout(
+                    title="Portfolio Concentration",
+                    xaxis_title="Stock",
+                    yaxis_title="% of Portfolio",
+                    height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                fig_conc.add_hline(y=20, line_dash="dash", line_color="orange",
+                                  annotation_text="20% threshold", annotation_position="right")
+                st.plotly_chart(fig_conc, use_container_width=True)
+
+        if show_concentration:
+            st.divider()
 else:
     st.error("❌ Unable to fetch real-time data. Please check your internet connection.")
 
