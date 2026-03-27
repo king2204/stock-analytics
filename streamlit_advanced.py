@@ -121,7 +121,7 @@ except Exception as e:
 col1, col2, col3 = st.columns([2, 2, 1])
 with col1:
     st.title("📊 Portfolio Dashboard")
-    st.markdown("🔄 **Real-time** - Auto-refresh every 30 seconds (like Yahoo Finance)")
+    st.markdown(f"🔄 **Real-time** - Auto-refresh every {refresh_interval} seconds (like Yahoo Finance)")
 
 with col2:
     st.metric("Portfolio Value", f"${summary['total_current_value']:,.0f}",
