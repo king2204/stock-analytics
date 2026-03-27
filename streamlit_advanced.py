@@ -20,7 +20,23 @@ st.set_page_config(
 
 # ============= SIDEBAR - LIVE STATUS FIRST =============
 st.sidebar.markdown("**⏰ Live Status**")
-st.sidebar.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
+
+# Real-time clock with JavaScript
+st.sidebar.markdown("""
+<div id="live-time" style="font-size: 24px; font-weight: bold; color: #1f77b4; margin: 10px 0;">
+  Last Update: <span id="current-time">00:00:00</span>
+</div>
+<script>
+function updateTime() {
+  const now = new Date();
+  const timeString = now.toLocaleTimeString('en-US', { hour12: false });
+  document.getElementById('current-time').textContent = timeString;
+}
+updateTime();
+setInterval(updateTime, 1000);
+</script>
+""", unsafe_allow_html=True)
+
 st.sidebar.caption("🟢 LIVE UPDATE")
 
 st.sidebar.markdown("---")
@@ -36,7 +52,7 @@ time_option = st.sidebar.selectbox(
 period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}
 selected_days = period_map[time_option]
 
-refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 1, 60, 1, 1)
+refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 30, 10)
 
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
