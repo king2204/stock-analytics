@@ -36,6 +36,12 @@ refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
 
+# Show live status
+st.sidebar.markdown("---")
+st.sidebar.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
+st.sidebar.caption("🟢 LIVE UPDATE")
+st.sidebar.markdown("---")
+
 # Chart toggles
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Chart Display Options**")
@@ -129,9 +135,7 @@ with col2:
               f"${summary['total_gain_loss_dollars']:,.0f}")
 
 with col3:
-    # Show live timestamp
-    st.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
-    st.caption("🟢 LIVE UPDATE")
+    st.metric("Portfolio Value Change", f"{summary['total_gain_loss_percent']:.2f}%")
 
 st.divider()
 
