@@ -48,6 +48,10 @@ time_option = st.sidebar.selectbox(
     index=1
 )
 
+# Convert time option to days
+period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}
+selected_days = period_map[time_option]
+
 refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
 
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
@@ -314,10 +318,10 @@ st.divider()
 
 # ============= RISK ANALYTICS =============
 if show_risk and is_real_time:
-    st.subheader("⚠️ Risk Analytics")
+    st.subheader(f"⚠️ Risk Analytics ({time_option})")
 
     try:
-        risk_metrics = analyzer.calculate_risk_metrics()
+        risk_metrics = analyzer.calculate_risk_metrics(days=selected_days)
 
         col1, col2 = st.columns(2)
 
@@ -330,7 +334,7 @@ if show_risk and is_real_time:
                 textposition='outside'
             )])
             fig_vol.update_layout(
-                title="Annualized Volatility",
+                title=f"Annualized Volatility ({time_option})",
                 height=350,
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
@@ -347,7 +351,7 @@ if show_risk and is_real_time:
                 textposition='outside'
             )])
             fig_sharpe.update_layout(
-                title="Sharpe Ratio",
+                title=f"Sharpe Ratio ({time_option})",
                 height=350,
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
@@ -374,10 +378,10 @@ st.divider()
 
 # ============= CORRELATION =============
 if show_correlation and is_real_time:
-    st.subheader("🔗 Correlation Matrix")
+    st.subheader(f"🔗 Correlation Matrix ({time_option})")
 
     try:
-        corr = analyzer.calculate_correlation_matrix()
+        corr = analyzer.calculate_correlation_matrix(days=selected_days)
 
         fig_corr = go.Figure(data=go.Heatmap(
             z=corr.values,
@@ -390,7 +394,7 @@ if show_correlation and is_real_time:
             textfont={"size": 11}
         ))
         fig_corr.update_layout(
-            title="Stock Correlation",
+            title=f"Stock Correlation ({time_option})",
             height=400,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)'
