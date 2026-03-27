@@ -18,7 +18,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ============= SIDEBAR - SET REFRESH INTERVAL FIRST =============
+# ============= SIDEBAR - LIVE STATUS FIRST =============
+st.sidebar.markdown("**⏰ Live Status**")
+st.sidebar.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
+st.sidebar.caption("🟢 LIVE UPDATE")
+
+st.sidebar.markdown("---")
 st.sidebar.title("⚙️ Dashboard Controls")
 
 time_option = st.sidebar.selectbox(
@@ -36,10 +41,6 @@ refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
 
-# Show live status
-st.sidebar.markdown("---")
-st.sidebar.metric("Last Update", datetime.now().strftime("%H:%M:%S"))
-st.sidebar.caption("🟢 LIVE UPDATE")
 st.sidebar.markdown("---")
 
 # Chart toggles
