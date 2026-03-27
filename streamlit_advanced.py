@@ -21,23 +21,27 @@ st.set_page_config(
 # ============= SIDEBAR - LIVE STATUS FIRST =============
 st.sidebar.markdown("**⏰ Live Status**")
 
-# Real-time clock with JavaScript
-st.sidebar.markdown("""
-<div id="live-time" style="font-size: 24px; font-weight: bold; color: #1f77b4; margin: 10px 0;">
-  Last Update: <span id="current-time">00:00:00</span>
-</div>
-<script>
-function updateTime() {
-  const now = new Date();
-  const timeString = now.toLocaleTimeString('en-US', { hour12: false });
-  document.getElementById('current-time').textContent = timeString;
-}
-updateTime();
-setInterval(updateTime, 1000);
-</script>
-""", unsafe_allow_html=True)
+# Real-time clock with Python
+import threading
+import queue
 
-st.sidebar.caption("🟢 LIVE UPDATE")
+# Create a placeholder for the clock
+time_placeholder = st.sidebar.empty()
+status_placeholder = st.sidebar.empty()
+
+def show_live_time():
+    """Display current time"""
+    with time_placeholder.container():
+        st.markdown(f"""
+        <div style="font-size: 20px; font-weight: bold; color: #1f77b4; padding: 10px; background: #f0f2f6; border-radius: 5px; text-align: center;">
+          Last Update: <span style="color: #ff7f0e;">{datetime.now().strftime("%H:%M:%S")}</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with status_placeholder.container():
+        st.caption("🟢 LIVE UPDATE")
+
+show_live_time()
 
 st.sidebar.markdown("---")
 st.sidebar.title("⚙️ Dashboard Controls")
