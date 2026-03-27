@@ -36,7 +36,7 @@ time_option = st.sidebar.selectbox(
 period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}
 selected_days = period_map[time_option]
 
-refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
+refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 1, 60, 1, 1)
 
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
