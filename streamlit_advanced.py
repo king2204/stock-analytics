@@ -47,7 +47,8 @@ time_option = st.sidebar.selectbox(
 period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}
 selected_days = period_map[time_option]
 
-refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
+refresh_interval = st.sidebar.slider("🔄 Manual Refresh", 10, 300, 60, 10,
+                                      help="Click refresh button below (slider for future use)")
 
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
@@ -71,11 +72,9 @@ show_invested = st.sidebar.checkbox("📊 Invested vs Current", True)
 show_concentration = st.sidebar.checkbox("🎯 Concentration", True)
 
 
-# ============= AUTO REFRESH - REAL-TIME LIKE YAHOO FINANCE =============
-# Auto-refresh based on slider value
-st.markdown(f"""
-<meta http-equiv="refresh" content="{refresh_interval}">
-""", unsafe_allow_html=True)
+# ============= AUTO REFRESH - DISABLED (MANUAL ONLY) =============
+# Disabled: User must click "🔄 Refresh" button manually
+# Was: st.markdown(f'<meta http-equiv="refresh" content="{refresh_interval}">')
 
 # ============= CUSTOM STYLING =============
 st.markdown("""
@@ -146,7 +145,7 @@ with tab_dashboard:
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         st.title("📊 Portfolio Dashboard")
-        st.markdown(f"🔄 **Real-time** - Auto-refresh every {refresh_interval} seconds (like Yahoo Finance)")
+        st.markdown(f"🔄 **Real-time Data** - Click refresh button to update prices")
 
     with col2:
         st.metric("Portfolio Value", f"${summary['total_current_value']:,.0f}",
