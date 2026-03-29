@@ -35,13 +35,7 @@ class DCASimulator:
             purchase_day: Day of month to make purchases (default 1st)
 
         Returns:
-            Dictionary containing:
-                - total_invested: Total amount invested over period
-                - final_value: Final portfolio value at end date
-                - gain_loss: Dollar gain/loss
-                - gain_loss_percent: Percentage gain/loss
-                - holdings_final: Final shares held per stock
-                - monthly_data: List of dicts with monthly progression
+            Dictionary containing simulation results
         """
         try:
             # Set default equal allocation if not provided
@@ -56,23 +50,32 @@ class DCASimulator:
             start = pd.to_datetime(start_date)
             end = pd.to_datetime(end_date)
 
-            # Get price history for all symbols
+            # Get price history for all symbols (get extended history for lookback)
             price_data_dict = {}
             for symbol in symbols:
                 try:
                     hist = StockDataFetcher.get_price_history(symbol, days=3650)  # ~10 years
                     hist = hist.reset_index()
-                    hist['Date'] = pd.to_datetime(hist['Date'])
+
+                    # Flatten MultiIndex columns to simple strings for easy access
+                    if isinstance(hist.columns, pd.MultiIndex):
+                        hist.columns = [col[0] if col[1] in [symbol, ''] else f"{col[0]}_{col[1]}" for col in hist.columns]
+
+                    # Ensure Date column exists
+                    if 'Date' not in hist.columns:
+                       hist['Date'] = pd.to_datetime(hist.get('date', hist.get('Datetime', hist.index)))
+                    else:
+                        hist['Date'] = pd.to_datetime(hist['Date'])
+
                     hist = hist.sort_values('Date')
                     price_data_dict[symbol] = hist
                 except Exception as e:
-                    print(f"Error fetching {symbol}: {e}")
-                    return self._error_response(f"Failed to fetch data for {symbol}")
+                    return self._error_response(f"Failed to fetch data for {symbol}: {str(e)[:100]}")
 
             # Initialize holdings and tracking
-            holdings = {symbol: 0 for symbol in symbols}
+            holdings = {symbol: 0.0 for symbol in symbols}
             monthly_data = []
-            total_invested = 0
+            total_invested = 0.0
 
             # Generate list of purchase months
             current = start
@@ -82,8 +85,7 @@ class DCASimulator:
                     purchase_date = current.replace(day=purchase_day)
                 except ValueError:
                     # Handle months with fewer days (e.g., Feb 30)
-                    last_day = pd.Timestamp(current.year, current.month + 1, 1) - timedelta(days=1)
-                    purchase_date = last_day.replace(day=last_day.day)
+                    purchase_date = current
 
                 # If purchase_date is in future, skip
                 if purchase_date > end:
@@ -93,11 +95,8 @@ class DCASimulator:
                 trading_date = self._find_nearest_trading_day(purchase_date, price_data_dict)
 
                 if trading_date is None:
-                    # Move to next month
-                    if current.month == 12:
-                        current = current.replace(year=current.year + 1, month=1)
-                    else:
-                        current = current.replace(month=current.month + 1)
+                    # Move to next month safely
+                    current = self._next_month(current)
                     continue
 
                 # Buy shares for each symbol on this date
@@ -110,7 +109,7 @@ class DCASimulator:
 
                 total_invested += monthly_amount
 
-                # Calculate portfolio value at this date using current prices
+                # Calculate portfolio value at this date
                 portfolio_value = self._calculate_portfolio_value(trading_date, holdings, price_data_dict)
 
                 monthly_data.append({
@@ -119,31 +118,16 @@ class DCASimulator:
                     'total_invested': round(total_invested, 2),
                     'portfolio_value': round(portfolio_value, 2),
                     'gain_loss': round(portfolio_value - total_invested, 2),
-                    'holdings': holdings.copy()
+                    'holdings': {k: v for k, v in holdings.items()}
                 })
 
-                # Move to next month (safely handle days overflow)
-                if current.month == 12:
-                    try:
-                        current = current.replace(year=current.year + 1, month=1)
-                    except ValueError:
-                        current = pd.Timestamp(current.year + 1, 1, 1)
-                else:
-                    try:
-                        current = current.replace(month=current.month + 1)
-                    except ValueError:
-                        # Handle months with fewer days (e.g., Jan 31 -> Feb)
-                        if current.month + 1 in [4, 6, 9, 11]:  # 30-day months
-                            current = pd.Timestamp(current.year, current.month + 1, 30)
-                        elif current.month + 1 == 2:  # February
-                            current = pd.Timestamp(current.year, 2, 28)
-                        else:
-                            current = pd.Timestamp(current.year, current.month + 1, 31)
+                # Move to next month
+                current = self._next_month(current)
 
             if not monthly_data:
                 return self._error_response("No trading data found for selected period")
 
-            # Get final portfolio value using latest available prices
+            # Get final portfolio value
             final_portfolio_value = self._calculate_portfolio_value(end, holdings, price_data_dict)
             gain_loss = final_portfolio_value - total_invested
             gain_loss_percent = (gain_loss / total_invested * 100) if total_invested > 0 else 0
@@ -174,16 +158,43 @@ class DCASimulator:
             }
 
         except Exception as e:
-            return self._error_response(f"Simulation error: {str(e)}")
+            return self._error_response(f"Simulation error: {str(e)[:200]}")
 
-    def _find_nearest_trading_day(self, target_date, price_data_dict, days_range=5):
+    def _get_close_column_name(self, hist: pd.DataFrame, symbol: str):
+        """Get the Close column name."""
+        if 'Close' in hist.columns:
+            return 'Close'
+        # Fallback: try to find any Close-like column
+        for col in hist.columns:
+            if 'Close' in str(col).lower():
+                return col
+        return None
+
+    def _next_month(self, date: pd.Timestamp) -> pd.Timestamp:
+        """Safely move to next month, handling day overflow."""
+        if date.month == 12:
+            return pd.Timestamp(year=date.year + 1, month=1, day=min(date.day, 31))
+        else:
+            # Get last day of next month
+            if date.month + 1 in [4, 6, 9, 11]:
+                last_day = 30
+            elif date.month + 1 == 2:
+                is_leap = (date.year % 4 == 0 and date.year % 100 != 0) or (date.year % 400 == 0)
+                last_day = 29 if is_leap else 28
+            else:
+                last_day = 31
+
+            return pd.Timestamp(year=date.year, month=date.month + 1, day=min(date.day, last_day))
+
+    def _find_nearest_trading_day(self, target_date: pd.Timestamp, price_data_dict: dict, days_range: int = 5) -> pd.Timestamp:
         """Find nearest trading day to target date."""
         # Check if target_date itself has data
         for symbol in price_data_dict.keys():
             hist = price_data_dict[symbol]
-            matching = hist[hist['Date'].dt.date == target_date.date()]
-            if not matching.empty:
-                return target_date
+            if 'Date' in hist.columns:
+                matching = hist[hist['Date'].dt.date == target_date.date()]
+                if len(matching) > 0:
+                    return target_date
 
         # Search within days_range
         for offset in range(1, days_range + 1):
@@ -191,47 +202,74 @@ class DCASimulator:
                 check_date = target_date + timedelta(days=offset * direction)
                 for symbol in price_data_dict.keys():
                     hist = price_data_dict[symbol]
-                    matching = hist[hist['Date'].dt.date == check_date.date()]
-                    if not matching.empty:
-                        return check_date
+                    if 'Date' in hist.columns:
+                        matching = hist[hist['Date'].dt.date == check_date.date()]
+                        if len(matching) > 0:
+                            return check_date
 
         return None
 
-    def _get_price_at_date(self, date, symbol, price_data_dict):
+    def _get_price_at_date(self, date: pd.Timestamp, symbol: str, price_data_dict: dict):
         """Get price for symbol at or nearest to given date."""
         hist = price_data_dict.get(symbol)
-        if hist is None:
+        if hist is None or len(hist) == 0 or 'Date' not in hist.columns:
             return None
 
-        matching = hist[hist['Date'].dt.date == date.date()]
-        if not matching.empty:
-            return float(matching.iloc[0]['Close'])
+        close_col = self._get_close_column_name(hist, symbol)
+        if close_col is None:
+            return None
 
-        # Find nearest date
-        hist['DateDiff'] = abs((hist['Date'] - date).dt.days)
-        nearest = hist.nsmallest(1, 'DateDiff')
-        if not nearest.empty and nearest.iloc[0]['DateDiff'] <= 5:
-            return float(nearest.iloc[0]['Close'])
+        # Direct match on date
+        try:
+            matching = hist[hist['Date'].dt.date == date.date()]
+            if len(matching) > 0:
+                price = matching.iloc[0][close_col]
+                return float(price.item()) if hasattr(price, 'item') else float(price)
+        except Exception:
+            pass
+
+        # Find nearest date within 5 days
+        try:
+            hist_copy = hist.copy()
+            hist_copy['DateDiff'] = abs((hist_copy['Date'] - date).dt.days)
+            nearest = hist_copy.nsmallest(1, 'DateDiff')
+
+            if len(nearest) > 0:
+                date_diff = nearest.iloc[0]['DateDiff']
+                if date_diff <= 5:
+                    price = nearest.iloc[0][close_col]
+                    return float(price.item()) if hasattr(price, 'item') else float(price)
+        except Exception:
+            pass
 
         return None
 
-    def _get_latest_price(self, symbol, price_data_dict):
+    def _get_latest_price(self, symbol: str, price_data_dict: dict):
         """Get most recent price for symbol."""
         hist = price_data_dict.get(symbol)
-        if hist is None or hist.empty:
+        if hist is None or len(hist) == 0:
             return None
-        return float(hist.iloc[-1]['Close'])
 
-    def _calculate_portfolio_value(self, as_of_date, holdings, price_data_dict):
-        """Calculate total portfolio value given holdings and prices as of a date."""
-        total_value = 0
+        close_col = self._get_close_column_name(hist, symbol)
+        if close_col is None:
+            return None
+
+        try:
+            price = hist.iloc[-1][close_col]
+            return float(price.item()) if hasattr(price, 'item') else float(price)
+        except (ValueError, TypeError, KeyError):
+            return None
+
+    def _calculate_portfolio_value(self, as_of_date: pd.Timestamp, holdings: dict, price_data_dict: dict) -> float:
+        """Calculate total portfolio value given holdings."""
+        total_value = 0.0
         for symbol, shares in holdings.items():
             price = self._get_price_at_date(as_of_date, symbol, price_data_dict)
-            if price:
+            if price and price > 0:
                 total_value += shares * price
         return total_value
 
-    def _error_response(self, error_msg):
+    def _error_response(self, error_msg: str) -> dict:
         """Return error response dict."""
         return {
             'success': False,
@@ -241,5 +279,6 @@ class DCASimulator:
             'gain_loss': 0,
             'gain_loss_percent': 0,
             'holdings_final': {},
-            'monthly_data': []
+            'monthly_data': [],
+            'months_simulated': 0
         }
