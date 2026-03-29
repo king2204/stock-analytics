@@ -122,11 +122,23 @@ class DCASimulator:
                     'holdings': holdings.copy()
                 })
 
-                # Move to next month
+                # Move to next month (safely handle days overflow)
                 if current.month == 12:
-                    current = current.replace(year=current.year + 1, month=1)
+                    try:
+                        current = current.replace(year=current.year + 1, month=1)
+                    except ValueError:
+                        current = pd.Timestamp(current.year + 1, 1, 1)
                 else:
-                    current = current.replace(month=current.month + 1)
+                    try:
+                        current = current.replace(month=current.month + 1)
+                    except ValueError:
+                        # Handle months with fewer days (e.g., Jan 31 -> Feb)
+                        if current.month + 1 in [4, 6, 9, 11]:  # 30-day months
+                            current = pd.Timestamp(current.year, current.month + 1, 30)
+                        elif current.month + 1 == 2:  # February
+                            current = pd.Timestamp(current.year, 2, 28)
+                        else:
+                            current = pd.Timestamp(current.year, current.month + 1, 31)
 
             if not monthly_data:
                 return self._error_response("No trading data found for selected period")
