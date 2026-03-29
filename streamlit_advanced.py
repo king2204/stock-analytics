@@ -1,4 +1,4 @@
-"""Advanced Tableau-style Portfolio Dashboard - Real-time with Auto-Refresh."""
+"""Advanced Tableau-style Portfolio Dashboard - Real-time with Auto-Refresh + DCA Simulator."""
 
 import streamlit as st
 import pandas as pd
@@ -9,6 +9,7 @@ import numpy as np
 import time
 from src.portfolio import Portfolio
 from src.analyzer import PortfolioAnalyzer
+from src.simulator import DCASimulator
 
 # ============= PAGE CONFIG =============
 st.set_page_config(
@@ -18,32 +19,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ============= SIDEBAR - LIVE STATUS FIRST =============
-st.sidebar.markdown("**⏰ Live Status**")
+# ============= LIVE STATUS - THAILAND TIME =============
+from datetime import datetime, timezone, timedelta
 
-# Real-time clock with Python
-import threading
-import queue
+bangkok_tz = timezone(timedelta(hours=7))
+current_time = datetime.now(bangkok_tz).strftime("%H:%M:%S")
 
-# Create a placeholder for the clock
-time_placeholder = st.sidebar.empty()
-status_placeholder = st.sidebar.empty()
-
-def show_live_time():
-    """Display current time"""
-    with time_placeholder.container():
-        st.markdown(f"""
-        <div style="font-size: 20px; font-weight: bold; color: #1f77b4; padding: 10px; background: #f0f2f6; border-radius: 5px; text-align: center;">
-          Last Update: <span style="color: #ff7f0e;">{datetime.now().strftime("%H:%M:%S")}</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with status_placeholder.container():
-        st.caption("🟢 LIVE UPDATE")
-
-show_live_time()
+st.sidebar.markdown(f"""<div style="padding: 15px; background: #f0f2f6; border-radius: 8px; text-align: center; margin-bottom: 10px;">
+  <div style="font-size: 14px; color: #666; margin-bottom: 5px;">⏰ Last Update</div>
+  <div style="font-size: 24px; font-weight: bold; color: #ff7f0e; font-family: monospace;">{current_time}</div>
+  <div style="font-size: 12px; color: green; margin-top: 5px;">🟢 LIVE (Thailand)</div>
+</div>""", unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
+
+# ============= AUTO REFRESH - REAL-TIME LIKE YAHOO FINANCE =============
+
 st.sidebar.title("⚙️ Dashboard Controls")
 
 time_option = st.sidebar.selectbox(
@@ -56,12 +47,12 @@ time_option = st.sidebar.selectbox(
 period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}
 selected_days = period_map[time_option]
 
-refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 30, 10)
+refresh_interval = st.sidebar.slider("🔄 Refresh (sec)", 10, 300, 60, 10)
 
 if st.sidebar.button("🔄 Refresh", use_container_width=True):
     st.rerun()
 
-st.sidebar.markdown("---")
+
 
 # Chart toggles
 st.sidebar.markdown("---")
@@ -81,6 +72,7 @@ show_concentration = st.sidebar.checkbox("🎯 Concentration", True)
 
 
 # ============= AUTO REFRESH - REAL-TIME LIKE YAHOO FINANCE =============
+# Auto-refresh based on slider value
 st.markdown(f"""
 <meta http-equiv="refresh" content="{refresh_interval}">
 """, unsafe_allow_html=True)
@@ -145,328 +137,561 @@ except Exception as e:
     holdings = pd.DataFrame()
     allocation = pd.DataFrame()
 
-# ============= HEADER =============
-col1, col2, col3 = st.columns([2, 2, 1])
-with col1:
-    st.title("📊 Portfolio Dashboard")
-    st.markdown(f"🔄 **Real-time** - Auto-refresh every {refresh_interval} seconds (like Yahoo Finance)")
+# ============= TABS: DASHBOARD vs SIMULATOR =============
+tab_dashboard, tab_simulator = st.tabs(["📊 Dashboard", "🎯 Investment Simulator"])
 
-with col2:
-    st.metric("Portfolio Value", f"${summary['total_current_value']:,.0f}",
-              f"${summary['total_gain_loss_dollars']:,.0f}")
+# ============= DASHBOARD TAB =============
+with tab_dashboard:
+    # ============= HEADER =============
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        st.title("📊 Portfolio Dashboard")
+        st.markdown(f"🔄 **Real-time** - Auto-refresh every {refresh_interval} seconds (like Yahoo Finance)")
 
-with col3:
-    st.metric("Portfolio Value Change", f"{summary['total_gain_loss_percent']:.2f}%")
+    with col2:
+        st.metric("Portfolio Value", f"${summary['total_current_value']:,.0f}",
+                  f"${summary['total_gain_loss_dollars']:,.0f}")
 
-st.divider()
+    with col3:
+        st.metric("Portfolio Value Change", f"{summary['total_gain_loss_percent']:.2f}%")
 
-# ============= KPI CARDS =============
-st.subheader("📈 Key Metrics")
+    st.divider()
 
-col1, col2, col3, col4 = st.columns(4)
+    # ============= KPI CARDS =============
+    st.subheader("📈 Key Metrics")
 
-with col1:
-    color = "🟢" if summary['total_gain_loss_percent'] > 0 else "🔴"
-    st.metric("Total Return", f"{color} {summary['total_gain_loss_percent']:.2f}%")
+    col1, col2, col3, col4 = st.columns(4)
 
-with col2:
-    st.metric("Total Invested", f"${summary['total_invested']:,.0f}")
+    with col1:
+        color = "🟢" if summary['total_gain_loss_percent'] > 0 else "🔴"
+        st.metric("Total Return", f"{color} {summary['total_gain_loss_percent']:.2f}%")
 
-with col3:
-    if len(holdings) > 0:
-        best = analyzer.get_best_performers(1)
-        if len(best) > 0:
-            st.metric("🏆 Best", f"{best.iloc[0]['symbol']}", f"+{best.iloc[0]['gain_loss_percent']:.1f}%")
+    with col2:
+        st.metric("Total Invested", f"${summary['total_invested']:,.0f}")
 
-with col4:
-    if len(holdings) > 0:
-        worst = analyzer.get_worst_performers(1)
-        if len(worst) > 0:
-            st.metric("📉 Worst", f"{worst.iloc[0]['symbol']}", f"{worst.iloc[0]['gain_loss_percent']:.1f}%")
+    with col3:
+        if len(holdings) > 0:
+            best = analyzer.get_best_performers(1)
+            if len(best) > 0:
+                st.metric("🏆 Best", f"{best.iloc[0]['symbol']}", f"+{best.iloc[0]['gain_loss_percent']:.1f}%")
 
-st.divider()
+    with col4:
+        if len(holdings) > 0:
+            worst = analyzer.get_worst_performers(1)
+            if len(worst) > 0:
+                st.metric("📉 Worst", f"{worst.iloc[0]['symbol']}", f"{worst.iloc[0]['gain_loss_percent']:.1f}%")
 
-# ============= MAIN CHARTS =============
-if is_real_time and len(holdings) > 0:
-    st.subheader("📊 Visual Analytics")
+    st.divider()
 
-    col1, col2 = st.columns(2)
+    # ============= MAIN CHARTS =============
+    if is_real_time and len(holdings) > 0:
+        st.subheader("📊 Visual Analytics")
 
-    # Pie Chart - Asset Allocation
-    if show_allocation:
-        with col1:
-            fig_pie = go.Figure(data=[go.Pie(
-                labels=allocation['symbol'],
-                values=allocation['current_value'],
-                textposition='inside',
-                textinfo='label+percent',
-                marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
-                hovertemplate='<b>%{label}</b><br>$%{value:,.0f}<extra></extra>'
-            )])
-            fig_pie.update_layout(
-                title="Asset Allocation",
-                height=450,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-
-    # Performance Bar - By Stock %
-    if show_performance:
-        col_perf = col2 if show_allocation else col1
-        with col_perf:
-            colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_percent']]
-            fig_bar = go.Figure(data=[go.Bar(
-                x=holdings['symbol'],
-                y=holdings['gain_loss_percent'],
-                marker=dict(color=colors),
-                text=[f"{x:.1f}%" for x in holdings['gain_loss_percent']],
-                textposition='outside',
-                hovertemplate='<b>%{x}</b><br>%{y:.2f}%<extra></extra>'
-            )])
-            fig_bar.update_layout(
-                title="Performance by Stock (%)",
-                xaxis_title="Stock",
-                yaxis_title="Return %",
-                height=450,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            fig_bar.add_hline(y=0, line_dash="dash", line_color="gray")
-            st.plotly_chart(fig_bar, use_container_width=True)
-
-    if show_allocation or show_performance:
-        st.divider()
-
-    col1, col2 = st.columns(2)
-
-    # Current Value Chart
-    if show_current_value:
-        with col1:
-            fig_val = go.Figure(data=[go.Bar(
-                x=holdings['symbol'],
-                y=holdings['current_value'],
-                marker=dict(color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
-                text=[f"${x:,.0f}" for x in holdings['current_value']],
-                textposition='outside',
-                hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
-            )])
-            fig_val.update_layout(
-                title="Current Value by Stock",
-                xaxis_title="Stock",
-                yaxis_title="Value ($)",
-                height=400,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig_val, use_container_width=True)
-
-    # Gain/Loss Chart
-    if show_gain_loss:
-        with col2:
-            colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_dollars']]
-            fig_gl = go.Figure(data=[go.Bar(
-                x=holdings['symbol'],
-                y=holdings['gain_loss_dollars'],
-                marker=dict(color=colors),
-                text=[f"${x:,.0f}" for x in holdings['gain_loss_dollars']],
-                textposition='outside',
-                hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
-            )])
-            fig_gl.update_layout(
-                title="Gain/Loss by Stock ($)",
-                xaxis_title="Stock",
-                yaxis_title="Gain/Loss ($)",
-                height=400,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            fig_gl.add_hline(y=0, line_dash="dash", line_color="gray")
-            st.plotly_chart(fig_gl, use_container_width=True)
-
-    if show_current_value or show_gain_loss:
-        st.divider()
-
-    # Invested vs Current Value
-    if show_invested:
         col1, col2 = st.columns(2)
-        with col1:
-            invested = holdings['shares'] * holdings['purchase_price']
-            fig_comp = go.Figure(data=[
-                go.Bar(x=holdings['symbol'], y=invested,
-                       name='Invested', marker=dict(color='#1f77b4')),
-                go.Bar(x=holdings['symbol'], y=holdings['current_value'],
-                       name='Current', marker=dict(color='#ff7f0e'))
-            ])
-            fig_comp.update_layout(
-                title="Invested vs Current Value",
-                xaxis_title="Stock",
-                yaxis_title="Value ($)",
-                barmode='group',
-                height=400,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig_comp, use_container_width=True)
 
-        # Concentration chart
-        if show_concentration:
-            with col2:
-                concentration = (holdings['current_value'] / summary['total_current_value'] * 100)
-                colors_conc = ['#d62728' if x > 30 else '#ff7f0e' if x > 20 else '#2ca02c'
-                              for x in concentration]
-                fig_conc = go.Figure(data=[go.Bar(
-                    x=holdings['symbol'],
-                    y=concentration,
-                    marker=dict(color=colors_conc),
-                    text=[f"{x:.1f}%" for x in concentration],
-                    textposition='outside',
-                    hovertemplate='<b>%{x}</b><br>%{y:.1f}% of portfolio<extra></extra>'
+        # Pie Chart - Asset Allocation
+        if show_allocation:
+            with col1:
+                fig_pie = go.Figure(data=[go.Pie(
+                    labels=allocation['symbol'],
+                    values=allocation['current_value'],
+                    textposition='inside',
+                    textinfo='label+percent',
+                    marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
+                    hovertemplate='<b>%{label}</b><br>$%{value:,.0f}<extra></extra>'
                 )])
-                fig_conc.update_layout(
-                    title="Portfolio Concentration",
+                fig_pie.update_layout(
+                    title="Asset Allocation",
+                    height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+        # Performance Bar - By Stock %
+        if show_performance:
+            col_perf = col2 if show_allocation else col1
+            with col_perf:
+                colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_percent']]
+                fig_bar = go.Figure(data=[go.Bar(
+                    x=holdings['symbol'],
+                    y=holdings['gain_loss_percent'],
+                    marker=dict(color=colors),
+                    text=[f"{x:.1f}%" for x in holdings['gain_loss_percent']],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>%{y:.2f}%<extra></extra>'
+                )])
+                fig_bar.update_layout(
+                    title="Performance by Stock (%)",
                     xaxis_title="Stock",
-                    yaxis_title="% of Portfolio",
+                    yaxis_title="Return %",
+                    height=450,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                fig_bar.add_hline(y=0, line_dash="dash", line_color="gray")
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+        if show_allocation or show_performance:
+            st.divider()
+
+        col1, col2 = st.columns(2)
+
+        # Current Value Chart
+        if show_current_value:
+            with col1:
+                fig_val = go.Figure(data=[go.Bar(
+                    x=holdings['symbol'],
+                    y=holdings['current_value'],
+                    marker=dict(color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']),
+                    text=[f"${x:,.0f}" for x in holdings['current_value']],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
+                )])
+                fig_val.update_layout(
+                    title="Current Value by Stock",
+                    xaxis_title="Stock",
+                    yaxis_title="Value ($)",
                     height=400,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)'
                 )
-                fig_conc.add_hline(y=20, line_dash="dash", line_color="orange",
-                                  annotation_text="20% threshold", annotation_position="right")
-                st.plotly_chart(fig_conc, use_container_width=True)
+                st.plotly_chart(fig_val, use_container_width=True)
 
-        if show_concentration:
+        # Gain/Loss Chart
+        if show_gain_loss:
+            with col2:
+                colors = ['#2ca02c' if x > 0 else '#d62728' for x in holdings['gain_loss_dollars']]
+                fig_gl = go.Figure(data=[go.Bar(
+                    x=holdings['symbol'],
+                    y=holdings['gain_loss_dollars'],
+                    marker=dict(color=colors),
+                    text=[f"${x:,.0f}" for x in holdings['gain_loss_dollars']],
+                    textposition='outside',
+                    hovertemplate='<b>%{x}</b><br>$%{y:,.0f}<extra></extra>'
+                )])
+                fig_gl.update_layout(
+                    title="Gain/Loss by Stock ($)",
+                    xaxis_title="Stock",
+                    yaxis_title="Gain/Loss ($)",
+                    height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                fig_gl.add_hline(y=0, line_dash="dash", line_color="gray")
+                st.plotly_chart(fig_gl, use_container_width=True)
+
+        if show_current_value or show_gain_loss:
             st.divider()
-else:
-    st.error("❌ Unable to fetch real-time data. Please check your internet connection.")
 
-st.divider()
+        # Invested vs Current Value
+        if show_invested:
+            col1, col2 = st.columns(2)
+            with col1:
+                invested = holdings['shares'] * holdings['purchase_price']
+                fig_comp = go.Figure(data=[
+                    go.Bar(x=holdings['symbol'], y=invested,
+                           name='Invested', marker=dict(color='#1f77b4')),
+                    go.Bar(x=holdings['symbol'], y=holdings['current_value'],
+                           name='Current', marker=dict(color='#ff7f0e'))
+                ])
+                fig_comp.update_layout(
+                    title="Invested vs Current Value",
+                    xaxis_title="Stock",
+                    yaxis_title="Value ($)",
+                    barmode='group',
+                    height=400,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                st.plotly_chart(fig_comp, use_container_width=True)
 
-# ============= RISK ANALYTICS =============
-if show_risk and is_real_time:
-    st.subheader(f"⚠️ Risk Analytics ({time_option})")
+            # Concentration chart
+            if show_concentration:
+                with col2:
+                    concentration = (holdings['current_value'] / summary['total_current_value'] * 100)
+                    colors_conc = ['#d62728' if x > 30 else '#ff7f0e' if x > 20 else '#2ca02c'
+                                  for x in concentration]
+                    fig_conc = go.Figure(data=[go.Bar(
+                        x=holdings['symbol'],
+                        y=concentration,
+                        marker=dict(color=colors_conc),
+                        text=[f"{x:.1f}%" for x in concentration],
+                        textposition='outside',
+                        hovertemplate='<b>%{x}</b><br>%{y:.1f}% of portfolio<extra></extra>'
+                    )])
+                    fig_conc.update_layout(
+                        title="Portfolio Concentration",
+                        xaxis_title="Stock",
+                        yaxis_title="% of Portfolio",
+                        height=400,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)'
+                    )
+                    fig_conc.add_hline(y=20, line_dash="dash", line_color="orange",
+                                      annotation_text="20% threshold", annotation_position="right")
+                    st.plotly_chart(fig_conc, use_container_width=True)
 
-    try:
-        risk_metrics = analyzer.calculate_risk_metrics(days=selected_days)
+            if show_concentration:
+                st.divider()
+    else:
+        st.error("❌ Unable to fetch real-time data. Please check your internet connection.")
 
+    st.divider()
+
+    # ============= RISK ANALYTICS =============
+    if show_risk and is_real_time:
+        st.subheader(f"⚠️ Risk Analytics ({time_option})")
+
+        try:
+            risk_metrics = analyzer.calculate_risk_metrics(days=selected_days)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                fig_vol = go.Figure(data=[go.Bar(
+                    x=risk_metrics['symbol'],
+                    y=risk_metrics['volatility'],
+                    marker=dict(color='#ff7f0e'),
+                    text=[f"{x:.1%}" for x in risk_metrics['volatility']],
+                    textposition='outside'
+                )])
+                fig_vol.update_layout(
+                    title=f"Annualized Volatility ({time_option})",
+                    height=350,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                st.plotly_chart(fig_vol, use_container_width=True)
+
+            with col2:
+                colors_sharpe = ['#2ca02c' if x > 0 else '#d62728' for x in risk_metrics['sharpe_ratio']]
+                fig_sharpe = go.Figure(data=[go.Bar(
+                    x=risk_metrics['symbol'],
+                    y=risk_metrics['sharpe_ratio'],
+                    marker=dict(color=colors_sharpe),
+                    text=[f"{x:.2f}" for x in risk_metrics['sharpe_ratio']],
+                    textposition='outside'
+                )])
+                fig_sharpe.update_layout(
+                    title=f"Sharpe Ratio ({time_option})",
+                    height=350,
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)'
+                )
+                st.plotly_chart(fig_sharpe, use_container_width=True)
+
+            # Risk Summary Table
+            risk_display = risk_metrics.copy()
+            risk_display['volatility'] = risk_display['volatility'].apply(lambda x: f"{x:.2%}")
+            risk_display['sharpe_ratio'] = risk_display['sharpe_ratio'].apply(lambda x: f"{x:.2f}")
+            risk_display['max_drawdown'] = risk_display['max_drawdown'].apply(lambda x: f"{x:.2%}")
+
+            st.dataframe(
+                risk_display[['symbol', 'volatility', 'sharpe_ratio', 'max_drawdown']].rename(
+                    columns={'symbol': 'Stock', 'volatility': 'Volatility',
+                            'sharpe_ratio': 'Sharpe', 'max_drawdown': 'Max DD'}
+                ),
+                use_container_width=True, hide_index=True
+            )
+        except Exception as e:
+            st.warning(f"⚠️ Could not load risk metrics: {str(e)[:50]}")
+
+    st.divider()
+
+    # ============= CORRELATION =============
+    if show_correlation and is_real_time:
+        st.subheader(f"🔗 Correlation Matrix ({time_option})")
+
+        try:
+            corr = analyzer.calculate_correlation_matrix(days=selected_days)
+
+            fig_corr = go.Figure(data=go.Heatmap(
+                z=corr.values,
+                x=corr.columns,
+                y=corr.index,
+                colorscale='RdBu',
+                zmid=0,
+                text=np.round(corr.values, 2),
+                texttemplate='%{text:.2f}',
+                textfont={"size": 11}
+            ))
+            fig_corr.update_layout(
+                title=f"Stock Correlation ({time_option})",
+                height=400,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig_corr, use_container_width=True)
+        except Exception as e:
+            st.warning(f"⚠️ Could not load correlation: {str(e)[:50]}")
+
+    st.divider()
+
+    # ============= HOLDINGS TABLE =============
+    if is_real_time and len(holdings) > 0:
+        st.subheader("📋 Holdings Details")
+
+        table_df = holdings[['symbol', 'shares', 'purchase_price', 'current_price', 'current_value', 'gain_loss_dollars', 'gain_loss_percent']].copy()
+        display_df = table_df.copy()
+        display_df.columns = ['Stock', 'Shares', 'Buy Price', 'Current Price', 'Value', 'Gain/Loss', 'Return %']
+        display_df['Shares'] = display_df['Shares'].apply(lambda x: f"{x:.0f}")
+        display_df['Buy Price'] = display_df['Buy Price'].apply(lambda x: f"${x:.2f}")
+        display_df['Current Price'] = display_df['Current Price'].apply(lambda x: f"${x:.2f}")
+        display_df['Value'] = display_df['Value'].apply(lambda x: f"${x:,.0f}")
+        display_df['Gain/Loss'] = display_df['Gain/Loss'].apply(lambda x: f"${x:,.0f}")
+        display_df['Return %'] = display_df['Return %'].apply(lambda x: f"{x:.2f}%")
+
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        st.divider()
+
+        # ============= TOP/WORST =============
         col1, col2 = st.columns(2)
 
         with col1:
-            fig_vol = go.Figure(data=[go.Bar(
-                x=risk_metrics['symbol'],
-                y=risk_metrics['volatility'],
-                marker=dict(color='#ff7f0e'),
-                text=[f"{x:.1%}" for x in risk_metrics['volatility']],
-                textposition='outside'
-            )])
-            fig_vol.update_layout(
-                title=f"Annualized Volatility ({time_option})",
-                height=350,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig_vol, use_container_width=True)
+            st.subheader("🏆 Top Performers")
+            top = analyzer.get_best_performers(len(holdings))
+            for _, row in top.iterrows():
+                st.write(f"**{row['symbol']}** → 🟢 +{row['gain_loss_percent']:.2f}%")
 
         with col2:
-            colors_sharpe = ['#2ca02c' if x > 0 else '#d62728' for x in risk_metrics['sharpe_ratio']]
-            fig_sharpe = go.Figure(data=[go.Bar(
-                x=risk_metrics['symbol'],
-                y=risk_metrics['sharpe_ratio'],
-                marker=dict(color=colors_sharpe),
-                text=[f"{x:.2f}" for x in risk_metrics['sharpe_ratio']],
-                textposition='outside'
-            )])
-            fig_sharpe.update_layout(
-                title=f"Sharpe Ratio ({time_option})",
-                height=350,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig_sharpe, use_container_width=True)
+            st.subheader("📉 Worst Performers")
+            worst = analyzer.get_worst_performers(len(holdings))
+            for _, row in worst.iterrows():
+                st.write(f"**{row['symbol']}** → 🔴 {row['gain_loss_percent']:.2f}%")
 
-        # Risk Summary Table
-        risk_display = risk_metrics.copy()
-        risk_display['volatility'] = risk_display['volatility'].apply(lambda x: f"{x:.2%}")
-        risk_display['sharpe_ratio'] = risk_display['sharpe_ratio'].apply(lambda x: f"{x:.2f}")
-        risk_display['max_drawdown'] = risk_display['max_drawdown'].apply(lambda x: f"{x:.2%}")
+        st.divider()
 
-        st.dataframe(
-            risk_display[['symbol', 'volatility', 'sharpe_ratio', 'max_drawdown']].rename(
-                columns={'symbol': 'Stock', 'volatility': 'Volatility',
-                        'sharpe_ratio': 'Sharpe', 'max_drawdown': 'Max DD'}
-            ),
-            use_container_width=True, hide_index=True
-        )
-    except Exception as e:
-        st.warning(f"⚠️ Could not load risk metrics: {str(e)[:50]}")
+        # ============= FOOTER =============
+        st.caption(f"📊 Last Updated: {summary['as_of_date']} | Auto-refresh: {refresh_interval}s | Holdings: {summary['number_of_holdings']}")
+    else:
+        st.error("❌ No data to display. Fetching real-time data failed.")
 
-st.divider()
 
-# ============= CORRELATION =============
-if show_correlation and is_real_time:
-    st.subheader(f"🔗 Correlation Matrix ({time_option})")
-
-    try:
-        corr = analyzer.calculate_correlation_matrix(days=selected_days)
-
-        fig_corr = go.Figure(data=go.Heatmap(
-            z=corr.values,
-            x=corr.columns,
-            y=corr.index,
-            colorscale='RdBu',
-            zmid=0,
-            text=np.round(corr.values, 2),
-            texttemplate='%{text:.2f}',
-            textfont={"size": 11}
-        ))
-        fig_corr.update_layout(
-            title=f"Stock Correlation ({time_option})",
-            height=400,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
-        )
-        st.plotly_chart(fig_corr, use_container_width=True)
-    except Exception as e:
-        st.warning(f"⚠️ Could not load correlation: {str(e)[:50]}")
-
-st.divider()
-
-# ============= HOLDINGS TABLE =============
-if is_real_time and len(holdings) > 0:
-    st.subheader("📋 Holdings Details")
-
-    table_df = holdings[['symbol', 'shares', 'purchase_price', 'current_price', 'current_value', 'gain_loss_dollars', 'gain_loss_percent']].copy()
-    display_df = table_df.copy()
-    display_df.columns = ['Stock', 'Shares', 'Buy Price', 'Current Price', 'Value', 'Gain/Loss', 'Return %']
-    display_df['Shares'] = display_df['Shares'].apply(lambda x: f"{x:.0f}")
-    display_df['Buy Price'] = display_df['Buy Price'].apply(lambda x: f"${x:.2f}")
-    display_df['Current Price'] = display_df['Current Price'].apply(lambda x: f"${x:.2f}")
-    display_df['Value'] = display_df['Value'].apply(lambda x: f"${x:,.0f}")
-    display_df['Gain/Loss'] = display_df['Gain/Loss'].apply(lambda x: f"${x:,.0f}")
-    display_df['Return %'] = display_df['Return %'].apply(lambda x: f"{x:.2f}%")
-
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+# ============= INVESTMENT SIMULATOR TAB =============
+with tab_simulator:
+    st.title("🎯 Investment Simulator")
+    st.markdown("**Dollar-Cost Averaging (DCA) What-If Analysis**")
+    st.markdown("See how your portfolio would have grown if you invested a fixed amount monthly over a historical period.")
 
     st.divider()
 
-    # ============= TOP/WORST =============
+    # Simulator Controls
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("🏆 Top Performers")
-        top = analyzer.get_best_performers(len(holdings))
-        for _, row in top.iterrows():
-            st.write(f"**{row['symbol']}** → 🟢 +{row['gain_loss_percent']:.2f}%")
+        st.markdown("### 📊 Simulation Parameters")
+
+        # Default dates: 3 years ago to today
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=3*365)
+
+        simulator_start = st.date_input(
+            "Start Date",
+            value=start_date.date(),
+            help="When to begin monthly investments"
+        )
+
+        simulator_end = st.date_input(
+            "End Date",
+            value=end_date.date(),
+            help="End date for simulation (usually today)"
+        )
+
+        monthly_investment = st.number_input(
+            "Monthly Investment ($)",
+            min_value=100.0,
+            max_value=100000.0,
+            value=500.0,
+            step=100.0,
+            help="How much to invest each month"
+        )
 
     with col2:
-        st.subheader("📉 Worst Performers")
-        worst = analyzer.get_worst_performers(len(holdings))
-        for _, row in worst.iterrows():
-            st.write(f"**{row['symbol']}** → 🔴 {row['gain_loss_percent']:.2f}%")
+        st.markdown("### 🎯 Allocation Strategy")
 
-    st.divider()
+        allocation_method = st.radio(
+            "Allocation Method",
+            ["Equal Weight (25% each)", "Custom"],
+            help="How to distribute monthly investment across stocks"
+        )
 
-    # ============= FOOTER =============
-    st.caption(f"📊 Last Updated: {summary['as_of_date']} | Auto-refresh: {refresh_interval}s | Holdings: {summary['number_of_holdings']}")
-else:
-    st.error("❌ No data to display. Fetching real-time data failed.")
+        allocation_dict = {}
+        if allocation_method == "Equal Weight (25% each)":
+            allocation_dict = {"AAPL": 0.25, "MSFT": 0.25, "GOOGL": 0.25, "AMZN": 0.25}
+            st.info("📌 Investing equal $125 in each stock per month")
+        else:
+            st.markdown("**Adjust allocation percentages:**")
+            col_a, col_m, col_g, col_z = st.columns(4)
+            with col_a:
+                aapl_pct = st.slider("AAPL %", 0, 100, 25) / 100
+            with col_m:
+                msft_pct = st.slider("MSFT %", 0, 100, 25) / 100
+            with col_g:
+                googl_pct = st.slider("GOOGL %", 0, 100, 25) / 100
+            with col_z:
+                amzn_pct = st.slider("AMZN %", 0, 100, 25) / 100
+
+            total_pct = aapl_pct + msft_pct + googl_pct + amzn_pct
+            if total_pct != 1.0:
+                st.warning(f"⚠️ Allocation totals {total_pct:.0%} (must be 100%)")
+            else:
+                allocation_dict = {"AAPL": aapl_pct, "MSFT": msft_pct, "GOOGL": googl_pct, "AMZN": amzn_pct}
+
+    # Run Simulation Button
+    if st.button("🚀 Run Simulation", use_container_width=True, type="primary"):
+        if simulator_start >= simulator_end:
+            st.error("❌ Start date must be before end date")
+        elif not allocation_dict or sum(allocation_dict.values()) < 0.99:
+            st.error("❌ Please set valid allocation percentages summing to 100%")
+        else:
+            st.divider()
+            with st.spinner("🔄 Running DCA simulation..."):
+                simulator = DCASimulator()
+                result = simulator.simulate_dca(
+                    symbols=["AAPL", "MSFT", "GOOGL", "AMZN"],
+                    start_date=simulator_start.strftime("%Y-%m-%d"),
+                    end_date=simulator_end.strftime("%Y-%m-%d"),
+                    monthly_amount=monthly_investment,
+                    allocation=allocation_dict,
+                    purchase_day=1
+                )
+
+            if result['success']:
+                # Key Metrics
+                st.subheader("📈 Simulation Results")
+                col1, col2, col3, col4 = st.columns(4)
+
+                with col1:
+                    st.metric(
+                        "Total Invested",
+                        f"${result['total_invested']:,.0f}",
+                        f"{result['months_simulated']} months"
+                    )
+
+                with col2:
+                    st.metric(
+                        "Final Portfolio Value",
+                        f"${result['final_value']:,.0f}",
+                        f"${result['gain_loss']:,.0f}"
+                    )
+
+                with col3:
+                    color = "🟢" if result['gain_loss_percent'] > 0 else "🔴"
+                    st.metric(
+                        "Return %",
+                        f"{color} {result['gain_loss_percent']:.2f}%",
+                        "vs invested"
+                    )
+
+                with col4:
+                    monthly_avg = result['total_invested'] / result['months_simulated']
+                    st.metric(
+                        "Monthly Avg",
+                        f"${monthly_avg:,.0f}",
+                        "invested"
+                    )
+
+                st.divider()
+
+                # Growth Chart
+                if result['monthly_data']:
+                    st.subheader("💹 Portfolio Growth Over Time")
+
+                    df_growth = pd.DataFrame(result['monthly_data'])
+
+                    fig_growth = go.Figure()
+                    fig_growth.add_trace(go.Scatter(
+                        x=df_growth['date_obj'],
+                        y=df_growth['portfolio_value'],
+                        name='Portfolio Value',
+                        mode='lines',
+                        line=dict(color='#2ca02c', width=3),
+                        fill='tozeroy',
+                        fillcolor='rgba(44, 160, 44, 0.2)',
+                        hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Portfolio: $%{y:,.0f}<extra></extra>'
+                    ))
+                    fig_growth.add_trace(go.Scatter(
+                        x=df_growth['date_obj'],
+                        y=df_growth['total_invested'],
+                        name='Total Invested',
+                        mode='lines',
+                        line=dict(color='#1f77b4', width=2, dash='dash'),
+                        hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Invested: $%{y:,.0f}<extra></extra>'
+                    ))
+
+                    fig_growth.update_layout(
+                        title="Monthly Portfolio Growth (DCA Simulation)",
+                        xaxis_title="Date",
+                        yaxis_title="Value ($)",
+                        height=450,
+                        hovermode='x unified',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(fig_growth, use_container_width=True)
+
+                st.divider()
+
+                # Final Holdings Breakdown
+                st.subheader("🏦 Final Holdings Breakdown")
+                holdings_data = []
+                for symbol, holding in result['holdings_final'].items():
+                    holdings_data.append({
+                        'Stock': symbol,
+                        'Shares': f"{holding['shares']:.4f}",
+                        'Final Price': f"${holding['final_price']:.2f}",
+                        'Current Value': f"${holding['current_value']:,.2f}"
+                    })
+
+                st.dataframe(pd.DataFrame(holdings_data), use_container_width=True, hide_index=True)
+
+                # Allocation Pie
+                col1, col2 = st.columns(2)
+                with col1:
+                    fig_alloc = go.Figure(data=[go.Pie(
+                        labels=list(result['holdings_final'].keys()),
+                        values=[h['current_value'] for h in result['holdings_final'].values()],
+                        marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+                    )])
+                    fig_alloc.update_layout(
+                        title="Final Portfolio Allocation",
+                        height=380,
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(fig_alloc, use_container_width=True)
+
+                # Comparison: Simulated vs Actual
+                with col2:
+                    try:
+                        actual_summary = analyzer.calculate_portfolio_summary()
+                        comparison_data = {
+                            'Portfolio Type': ['Simulated (DCA)', 'Actual'],
+                            'Total Invested': [result['total_invested'], actual_summary['total_invested']],
+                            'Current Value': [result['final_value'], actual_summary['total_current_value']],
+                            'Gain/Loss %': [result['gain_loss_percent'], actual_summary['total_gain_loss_percent']]
+                        }
+                        df_comp = pd.DataFrame(comparison_data)
+
+                        fig_comp = go.Figure(data=[
+                            go.Bar(x=df_comp['Portfolio Type'], y=df_comp['Current Value'],
+                                   name='Current Value', marker=dict(color='#2ca02c')),
+                        ])
+                        fig_comp.update_layout(
+                            title="Simulated vs Actual Portfolio",
+                            yaxis_title="Value ($)",
+                            height=380,
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_comp, use_container_width=True)
+                    except:
+                        st.info("Could not load actual portfolio comparison")
+
+                st.divider()
+                st.success(f"✅ Simulation complete! If you had invested ${monthly_investment:,.0f}/month for {result['months_simulated']} months, your portfolio would be worth ${result['final_value']:,.0f} today.")
+            else:
+                st.error(f"❌ Simulation failed: {result.get('error', 'Unknown error')}")

@@ -26,6 +26,27 @@ __pycache__/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# Data files (optional - uncomment if needed)
+# Streamlit Secrets (NEVER commit!)
+.streamlit/secrets.toml
+.streamlit/secrets.toml.local
+.streamlit/.secret/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# IDE & Editor specific
+*.sublime-project
+*.sublime-workspace
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Optional data files (comment out if needed)
 # data/*.csv
 # data/*.xlsx
