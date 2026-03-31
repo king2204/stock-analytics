@@ -424,15 +424,7 @@ Free for personal, educational, and commercial use with attribution.
 
 ---
 
-## 📧 Contact
-
-- **GitHub**: [yourusername/portfolio-performance-dashboard](https://github.com/yourusername/portfolio-performance-dashboard)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/portfolio-performance-dashboard/issues)
-- **Email**: [your.email@example.com]
-
----
-
-**For Interviews & Hiring Teams:**
+## 🎯 For Interviews & Hiring Teams:
 
 This project demonstrates:
 ✅ **Data Engineering** - ETL pipeline, data fetching, transformation
