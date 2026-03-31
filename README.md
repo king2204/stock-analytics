@@ -45,6 +45,25 @@ A **production-ready, real-time** stock portfolio analytics dashboard built with
 
 ---
 
+## 📸 Screenshots
+
+### Dashboard Tab - Real-Time Analytics
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
+
+### Portfolio Metrics & KPIs
+![Portfolio Metrics](docs/screenshots/portfolio-metrics.png)
+
+### Interactive Charts & Visualizations
+![Charts Visualization](docs/screenshots/charts-visualization.png)
+
+### Risk Analysis
+![Risk Analysis](docs/screenshots/risk-analysis.png)
+
+### Investment Simulator (DCA)
+![DCA Simulator](docs/screenshots/simulator-dca.png)
+
+---
+
 ## 🏗️ Architecture & Data Flow
 
 ```
