@@ -11,7 +11,7 @@ from src.portfolio import Portfolio
 from src.analyzer import PortfolioAnalyzer
 from src.simulator import DCASimulator
 
-# ============= PAGE CONFIG =============
+# ============= ตั้งค่าหน้าเว็บ =============
 st.set_page_config(
     page_title="Portfolio Dashboard",
     page_icon="📊",
@@ -19,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ============= LIVE STATUS - THAILAND TIME =============
+# ============= แสดงเวลาปัจจุบัน (เวลาไทย) =============
 from datetime import datetime, timezone, timedelta
 
 bangkok_tz = timezone(timedelta(hours=7))
@@ -33,7 +33,7 @@ st.sidebar.markdown(f"""<div style="padding: 15px; background: #f0f2f6; border-r
 
 st.sidebar.markdown("---")
 
-# ============= AUTO REFRESH - REAL-TIME LIKE YAHOO FINANCE =============
+# ============= ตัวควบคุมแดชบอร์ด =============
 
 st.sidebar.title("⚙️ Dashboard Controls")
 
@@ -43,8 +43,7 @@ time_option = st.sidebar.selectbox(
     index=1
 )
 
-# Convert time option to days
-period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}
+period_map = {"7 Days": 7, "30 Days": 30, "90 Days": 90}  # แปลงตัวเลือกเป็นจำนวนวัน
 selected_days = period_map[time_option]
 
 refresh_interval = st.sidebar.slider("🔄 Manual Refresh", 10, 300, 60, 10,
@@ -76,7 +75,7 @@ show_concentration = st.sidebar.checkbox("🎯 Concentration", True)
 # Disabled: User must click "🔄 Refresh" button manually
 # Was: st.markdown(f'<meta http-equiv="refresh" content="{refresh_interval}">')
 
-# ============= CUSTOM STYLING =============
+# ============= ปรับแต่ง CSS สไตล์ =============
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
@@ -92,10 +91,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ============= LOAD DATA =============
+# ============= โหลดข้อมูลพอร์ตโฟลิโอ =============
 @st.cache_data(ttl=0)
 def load_data():
-    """Load portfolio with historical purchase data."""
+    """โหลดพอร์ตโฟลิโอพร้อมข้อมูลการซื้อในอดีต"""
     portfolio = Portfolio("My Stock Portfolio")
     portfolio.add_holding("AAPL", 10, 150.00, "2023-01-15")
     portfolio.add_holding("MSFT", 5, 300.00, "2023-03-20")
@@ -104,17 +103,17 @@ def load_data():
     return portfolio
 
 def get_analyzer(portfolio):
-    """Create analyzer and fetch real-time prices."""
+    """สร้างเครื่องวิเคราะห์และดึงราคาปัจจุบันจาก Yahoo Finance"""
     analyzer = PortfolioAnalyzer(portfolio)
     try:
         prices = analyzer.fetch_current_prices()
         if prices is None or len(prices) == 0:
-            st.error("❌ Failed to fetch prices from Yahoo Finance. Check internet connection.")
+            st.error("❌ ไม่สามารถดึงราคาจาก Yahoo Finance ได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต")
             return None
-        st.success(f"✅ Fetched {len(prices)} stocks from Yahoo Finance")
+        st.success(f"✅ ดึงข้อมูลหุ้น {len(prices)} ตัวจาก Yahoo Finance สำเร็จ")
         return analyzer
     except Exception as e:
-        st.error(f"❌ Error: {str(e)[:100]}")
+        st.error(f"❌ เกิดข้อผิดพลาด: {str(e)[:100]}")
         return None
 
 portfolio = load_data()
@@ -136,12 +135,12 @@ except Exception as e:
     holdings = pd.DataFrame()
     allocation = pd.DataFrame()
 
-# ============= TABS: DASHBOARD vs SIMULATOR =============
+# ============= แท็บ: แดชบอร์ด vs ตัวจำลองการลงทุน =============
 tab_dashboard, tab_simulator = st.tabs(["📊 Dashboard", "🎯 Investment Simulator"])
 
-# ============= DASHBOARD TAB =============
+# ============= แท็บแดชบอร์ด =============
 with tab_dashboard:
-    # ============= HEADER =============
+    # ============= ส่วนหัว =============
     col1, col2, col3 = st.columns([2, 2, 1])
     with col1:
         st.title("📊 Portfolio Dashboard")
@@ -156,7 +155,7 @@ with tab_dashboard:
 
     st.divider()
 
-    # ============= KPI CARDS =============
+    # ============= การ์ดตัวชี้วัดหลัก =============
     st.subheader("📈 Key Metrics")
 
     col1, col2, col3, col4 = st.columns(4)
@@ -182,13 +181,13 @@ with tab_dashboard:
 
     st.divider()
 
-    # ============= MAIN CHARTS =============
+    # ============= แผนภูมิหลัก =============
     if is_real_time and len(holdings) > 0:
         st.subheader("📊 Visual Analytics")
 
         col1, col2 = st.columns(2)
 
-        # Pie Chart - Asset Allocation
+        # แผนภูมิวงกลม - การจัดสรรสินทรัพย์
         if show_allocation:
             with col1:
                 fig_pie = go.Figure(data=[go.Pie(
@@ -207,7 +206,7 @@ with tab_dashboard:
                 )
                 st.plotly_chart(fig_pie, use_container_width=True)
 
-        # Performance Bar - By Stock %
+        # แผนภูมิประสิทธิภาพ - เปอร์เซ็นต์ต่อหุ้น
         if show_performance:
             col_perf = col2 if show_allocation else col1
             with col_perf:
@@ -338,7 +337,7 @@ with tab_dashboard:
 
     st.divider()
 
-    # ============= RISK ANALYTICS =============
+    # ============= การวิเคราะห์ความเสี่ยง =============
     if show_risk and is_real_time:
         st.subheader(f"⚠️ Risk Analytics ({time_option})")
 
@@ -398,7 +397,7 @@ with tab_dashboard:
 
     st.divider()
 
-    # ============= CORRELATION =============
+    # ============= เมทริกซ์สหสัมพันธ์ =============
     if show_correlation and is_real_time:
         st.subheader(f"🔗 Correlation Matrix ({time_option})")
 
@@ -427,7 +426,7 @@ with tab_dashboard:
 
     st.divider()
 
-    # ============= HOLDINGS TABLE =============
+    # ============= ตารางรายละเอียดการถือครอง =============
     if is_real_time and len(holdings) > 0:
         st.subheader("📋 Holdings Details")
 
@@ -445,7 +444,7 @@ with tab_dashboard:
 
         st.divider()
 
-        # ============= TOP/WORST =============
+        # ============= ผู้ประสบความสำเร็จสูงสุด/ต่ำสุด =============
         col1, col2 = st.columns(2)
 
         with col1:
@@ -462,13 +461,13 @@ with tab_dashboard:
 
         st.divider()
 
-        # ============= FOOTER =============
+        # ============= ท้ายน้อย =============
         st.caption(f"📊 Last Updated: {summary['as_of_date']} | Auto-refresh: {refresh_interval}s | Holdings: {summary['number_of_holdings']}")
     else:
         st.error("❌ No data to display. Fetching real-time data failed.")
 
 
-# ============= INVESTMENT SIMULATOR TAB =============
+# ============= แท็บตัวจำลองการลงทุน =============
 with tab_simulator:
     st.title("🎯 Investment Simulator")
     st.markdown("**Dollar-Cost Averaging (DCA) What-If Analysis**")
@@ -476,7 +475,7 @@ with tab_simulator:
 
     st.divider()
 
-    # Simulator Controls
+    # ตัวควบคุมการจำลอง
     col1, col2 = st.columns(2)
 
     with col1:
@@ -538,7 +537,7 @@ with tab_simulator:
             else:
                 allocation_dict = {"AAPL": aapl_pct, "MSFT": msft_pct, "GOOGL": googl_pct, "AMZN": amzn_pct}
 
-    # Run Simulation Button
+    # ปุ่มเรียกใช้การจำลอง
     if st.button("🚀 Run Simulation", use_container_width=True, type="primary"):
         if simulator_start >= simulator_end:
             st.error("❌ Start date must be before end date")
@@ -558,7 +557,7 @@ with tab_simulator:
                 )
 
             if result['success']:
-                # Key Metrics
+                # ตัวชี้วัดหลัก
                 st.subheader("📈 Simulation Results")
                 col1, col2, col3, col4 = st.columns(4)
 

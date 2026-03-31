@@ -1,18 +1,18 @@
-"""Portfolio data model and management."""
+"""โมเดลข้อมูลพอร์ตโฟลิโอและการจัดการ"""
 
 import pandas as pd
 from datetime import datetime
 
 
 class Portfolio:
-    """Represents a stock portfolio with holdings."""
-    
+    """แสดงถึงพอร์ตโฟลิโอหุ้นที่มีการถือครอง"""
+
     def __init__(self, name: str):
         """
-        Initialize portfolio.
+        เริ่มต้นพอร์ตโฟลิโอ
 
         Args:
-            name: Portfolio name
+            name: ชื่อพอร์ตโฟลิโอ
         """
         self.name = name
         self.holdings = pd.DataFrame(columns=['symbol', 'shares', 'purchase_price', 'purchase_date']).astype({
@@ -22,16 +22,16 @@ class Portfolio:
             'purchase_date': 'object'
         })
         self.created_date = datetime.now()
-    
+
     def add_holding(self, symbol: str, shares: int, purchase_price: float, purchase_date: str):
         """
-        Add a stock holding to portfolio.
+        เพิ่มการถือครองหุ้นในพอร์ตโฟลิโอ
 
         Args:
-            symbol: Stock ticker symbol (e.g., 'AAPL')
-            shares: Number of shares
-            purchase_price: Price per share at purchase
-            purchase_date: Date of purchase (YYYY-MM-DD format)
+            symbol: สัญลักษณ์ ticker ของหุ้น เช่น 'AAPL'
+            shares: จำนวนหุ้น
+            purchase_price: ราคาต่อหุ้นเมื่อซื้อ
+            purchase_date: วันที่ซื้อ (รูปแบบ YYYY-MM-DD)
         """
         new_holding = pd.DataFrame([{
             'symbol': symbol.upper(),
@@ -40,13 +40,13 @@ class Portfolio:
             'purchase_date': purchase_date
         }])
         self.holdings = pd.concat([self.holdings, new_holding], ignore_index=True)
-    
+
     def remove_holding(self, symbol: str):
-        """Remove a holding from portfolio."""
+        """ลบการถือครองออกจากพอร์ตโฟลิโอ"""
         self.holdings = self.holdings[self.holdings['symbol'] != symbol.upper()]
-    
+
     def get_symbols(self) -> list:
-        """Get list of all stock symbols in portfolio."""
+        """ดึงรายการสัญลักษณ์หุ้นที่มีอยู่ในพอร์ตโฟลิโอ"""
         return self.holdings['symbol'].unique().tolist()
     
     def save_to_csv(self, filepath: str):

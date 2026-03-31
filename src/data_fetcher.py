@@ -1,4 +1,4 @@
-"""Fetch real-time and historical stock data from Yahoo Finance."""
+"""ดึงข้อมูลราคาหุ้นแบบเรียลไทม์ และประวัติจาก Yahoo Finance"""
 
 import yfinance as yf
 import pandas as pd
@@ -6,45 +6,45 @@ from datetime import datetime, timedelta
 
 
 class StockDataFetcher:
-    """Fetch stock market data using Yahoo Finance."""
-    
+    """ดึงข้อมูลตลาดหุ้นโดยใช้ Yahoo Finance"""
+
     @staticmethod
     def get_current_price(symbol: str) -> float:
         """
-        Get current stock price.
-        
+        ดึงราคาหุ้นปัจจุบัน
+
         Args:
-            symbol: Stock ticker symbol
-            
+            symbol: สัญลักษณ์ ticker ของหุ้น
+
         Returns:
-            Current price as float
+            ราคาปัจจุบันเป็นตัวเลขทศนิยม
         """
         ticker = yf.Ticker(symbol)
         data = ticker.history(period='1d')
         if len(data) > 0:
             return data['Close'].iloc[-1]
         return None
-    
+
     @staticmethod
     def get_price_history(symbol: str, days: int = 90) -> pd.DataFrame:
         """
-        Get historical price data.
-        
+        ดึงข้อมูลประวัติราคา
+
         Args:
-            symbol: Stock ticker symbol
-            days: Number of days of history to fetch
-            
+            symbol: สัญลักษณ์ ticker ของหุ้น
+            days: จำนวนวันของประวัติที่ดึง
+
         Returns:
-            DataFrame with Date, Close, High, Low, Volume
+            DataFrame ที่มี Date, Close, High, Low, Volume
         """
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
-        
-        data = yf.download(symbol, start=start_date.strftime('%Y-%m-%d'), 
+
+        data = yf.download(symbol, start=start_date.strftime('%Y-%m-%d'),
                           end=end_date.strftime('%Y-%m-%d'), progress=False)
         data['Symbol'] = symbol
         return data
-    
+
     @staticmethod
     def get_multiple_prices(symbols: list) -> pd.DataFrame:
         """
