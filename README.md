@@ -47,29 +47,35 @@ A **production-ready, real-time** stock portfolio analytics dashboard built with
 
 ## 📸 Screenshots
 
-### Dashboard Tab - Real-Time Analytics
-![Dashboard Overview](docs/screenshots/01-dashboard-overview.png)
+### 📈 Dashboard Tab - Real-Time Portfolio Analytics
 
-### Portfolio Metrics & KPIs
-![Portfolio Metrics](docs/screenshots/02-portfolio-metrics.png)
+**1. Dashboard Overview - Key Metrics & Analytics**
+![Dashboard Overview](docs/screenshots/Portfolio_dashboard_01_overview.png)
 
-### Interactive Charts - Performance
-![Charts Performance](docs/screenshots/03-charts-performance.png)
+**2. Risk Analysis - Volatility, Sharpe Ratio, Drawdown**
+![Risk Metrics](docs/screenshots/Portfolio_dashboard_02_risk_metrics.png)
 
-### Interactive Charts - Allocation
-![Charts Allocation](docs/screenshots/04-charts-allocation.png)
+**3. Current Holdings - Stock Performance & Values**
+![Current Holdings](docs/screenshots/Portfolio_dashboard_03_current_holdings.png)
 
-### Invested vs Current Value
-![Invested vs Current](docs/screenshots/05-invested-vs-current.png)
+**4. Correlation Analysis - Diversification Heatmap**
+![Correlation Analysis](docs/screenshots/Portfolio_dashboard_04_correlation_analysis.png)
 
-### Risk Analysis (Volatility & Sharpe Ratio)
-![Risk Analysis](docs/screenshots/06-risk-analysis.png)
+**5. Best & Worst Performers - Performance Ranking**
+![Performers](docs/screenshots/Portfolio_dashboard_05_performers.png)
 
-### Correlation Heatmap
-![Correlation Matrix](docs/screenshots/07-correlation-heatmap.png)
+---
 
-### Investment Simulator (DCA Strategy)
-![DCA Simulator](docs/screenshots/08-simulator-dca.png)
+### 🎯 Investment Simulator Tab - DCA What-If Analysis
+
+**1. Investment Parameters - Configure DCA Strategy**
+![DCA Parameters](docs/screenshots/DCA_simulator_01_investment_parameters.png)
+
+**2. Growth Projection - Historical What-If Analysis**
+![DCA Growth](docs/screenshots/DCA_simulator_02_growth_projection.png)
+
+**3. Final Allocation - Simulated Portfolio Breakdown**
+![DCA Holdings](docs/screenshots/DCA_simulator_03_final_allocation.png)
 
 ---
 
