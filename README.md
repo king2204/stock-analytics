@@ -48,19 +48,28 @@ A **production-ready, real-time** stock portfolio analytics dashboard built with
 ## 📸 Screenshots
 
 ### Dashboard Tab - Real-Time Analytics
-![Dashboard Overview](docs/screenshots/dashboard-overview.png)
+![Dashboard Overview](docs/screenshots/01-dashboard-overview.png)
 
 ### Portfolio Metrics & KPIs
-![Portfolio Metrics](docs/screenshots/portfolio-metrics.png)
+![Portfolio Metrics](docs/screenshots/02-portfolio-metrics.png)
 
-### Interactive Charts & Visualizations
-![Charts Visualization](docs/screenshots/charts-visualization.png)
+### Interactive Charts - Performance
+![Charts Performance](docs/screenshots/03-charts-performance.png)
 
-### Risk Analysis
-![Risk Analysis](docs/screenshots/risk-analysis.png)
+### Interactive Charts - Allocation
+![Charts Allocation](docs/screenshots/04-charts-allocation.png)
 
-### Investment Simulator (DCA)
-![DCA Simulator](docs/screenshots/simulator-dca.png)
+### Invested vs Current Value
+![Invested vs Current](docs/screenshots/05-invested-vs-current.png)
+
+### Risk Analysis (Volatility & Sharpe Ratio)
+![Risk Analysis](docs/screenshots/06-risk-analysis.png)
+
+### Correlation Heatmap
+![Correlation Matrix](docs/screenshots/07-correlation-heatmap.png)
+
+### Investment Simulator (DCA Strategy)
+![DCA Simulator](docs/screenshots/08-simulator-dca.png)
 
 ---
 
