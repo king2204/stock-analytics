@@ -1,4 +1,4 @@
-"""ตัวจำลองการลงทุนแบบ Dollar-Cost Averaging (DCA)"""
+"""Dollar-Cost Averaging (DCA) Investment Simulator"""
 
 import pandas as pd
 import numpy as np
@@ -7,10 +7,10 @@ from src.data_fetcher import StockDataFetcher
 
 
 class DCASimulator:
-    """จำลองกลยุทธ์การลงทุนสม่ำเสมอโดยข้อมูลในอดีต"""
+    """Simulate consistent investment strategy using historical data"""
 
     def __init__(self):
-        """เริ่มต้นตัวจำลอง DCA"""
+        """Initialize DCA simulator"""
         pass
 
     def simulate_dca(
@@ -23,45 +23,45 @@ class DCASimulator:
         purchase_day: int = 1
     ) -> dict:
         """
-        จำลองกลยุทธ์การลงทุนสม่ำเสมอ
+        Simulate a consistent investment strategy
 
         Parameters:
-            symbols: รายชื่อสัญลักษณ์หุ้น เช่น ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-            start_date: วันเริ่มต้น ในรูปแบบ 'YYYY-MM-DD'
-            end_date: วันสิ้นสุด ในรูปแบบ 'YYYY-MM-DD'
-            monthly_amount: จำนวนเงินที่ลงทุนต่อเดือนในหน่วยดอลลาร์
-            allocation: พจนานุกรมแมพสัญลักษณ์ไปยังเปอร์เซ็นต์การจัดสรร เช่น {'AAPL': 0.25, ...}
-                       ถ้าเป็น None จะใช้การจัดสรรเท่ากันสำหรับทุกหุ้น
-            purchase_day: วันของเดือนที่ทำการซื้อ (ค่าเริ่มต้น 1)
+            symbols: List of stock symbols e.g. ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
+            start_date: Start date in format 'YYYY-MM-DD'
+            end_date: End date in format 'YYYY-MM-DD'
+            monthly_amount: Amount to invest per month in dollars
+            allocation: Dictionary mapping symbols to allocation percentages e.g. {'AAPL': 0.25, ...}
+                       If None, uses equal allocation for all stocks
+            purchase_day: Day of month for purchases (default: 1)
 
         Returns:
-            พจนานุกรมที่มีผลการจำลอง
+            Dictionary with simulation results
         """
         try:
-            # ถ้าไม่ระบุการจัดสรร ให้ใช้รูปแบบเท่ากันสำหรับทุกหุ้น
+            # If no allocation specified, use equal split for all stocks
             if allocation is None:
                 allocation = {symbol: 1.0 / len(symbols) for symbol in symbols}
 
-            # ปรับการจัดสรรให้รวมเป็น 100%
+            # Normalize allocation to sum to 100%
             total_allocation = sum(allocation.values())
             allocation = {k: v / total_allocation for k, v in allocation.items()}
 
-            # แปลงวันที่เป็น pandas Timestamp
+            # Convert dates to pandas Timestamp
             start = pd.to_datetime(start_date)
             end = pd.to_datetime(end_date)
 
-            # ดึงประวัติราคาสำหรับทุกหุ้น (ดึงข้อมูลมากที่สุด ~10 ปี)
+            # Fetch price history for all stocks (~10 years max)
             price_data_dict = {}
             for symbol in symbols:
                 try:
-                    hist = StockDataFetcher.get_price_history(symbol, days=3650)  # ~10 ปี
+                    hist = StockDataFetcher.get_price_history(symbol, days=3650)  # ~10 years
                     hist = hist.reset_index()
 
-                    # แปลง MultiIndex columns ให้เป็นสตริงธรรมดา
+                    # Convert MultiIndex columns to simple strings
                     if isinstance(hist.columns, pd.MultiIndex):
                         hist.columns = [col[0] if col[1] in [symbol, ''] else f"{col[0]}_{col[1]}" for col in hist.columns]
 
-                    # ตรวจสอบว่าคอลัมน์ Date มีอยู่
+                    # Verify Date column exists
                     if 'Date' not in hist.columns:
                        hist['Date'] = pd.to_datetime(hist.get('date', hist.get('Datetime', hist.index)))
                     else:
@@ -72,34 +72,34 @@ class DCASimulator:
                 except Exception as e:
                     return self._error_response(f"Failed to fetch data for {symbol}: {str(e)[:100]}")
 
-            # เริ่มต้นการถือครองและติดตามข้อมูล
+            # Initialize holdings and tracking data
             holdings = {symbol: 0.0 for symbol in symbols}
             monthly_data = []
             total_invested = 0.0
 
-            # สร้างรายการเดือนที่ทำการซื้อ
+            # Create list of months for purchases
             current = start
             while current <= end:
-                # พยายามเลือกวันที่ซื้อ (purchase_day ของเดือนปัจจุบัน)
+                # Try to select purchase date (purchase_day of current month)
                 try:
                     purchase_date = current.replace(day=purchase_day)
                 except ValueError:
-                    # จัดการเดือนที่มีจำนวนวันน้อยกว่า (เช่น Feb 30)
+                    # Handle months with fewer days (e.g., Feb 30)
                     purchase_date = current
 
-                # ถ้าวันที่ซื้ออยู่ในอนาคต ให้ข้าม
+                # If purchase date is in future, skip
                 if purchase_date > end:
                     break
 
-                # หาวันซื้อขายที่ใกล้เคียงที่สุด
+                # Find nearest trading day
                 trading_date = self._find_nearest_trading_day(purchase_date, price_data_dict)
 
                 if trading_date is None:
-                    # ย้ายไปเดือนถัดไปอย่างปลอดภัย
+                    # Move to next month safely
                     current = self._next_month(current)
                     continue
 
-                # ซื้อหุ้นสำหรับแต่ละสัญลักษณ์ในวันนี้
+                # Purchase stocks for each symbol on this day
                 for symbol in symbols:
                     price = self._get_price_at_date(trading_date, symbol, price_data_dict)
                     if price is not None and price > 0:
@@ -109,7 +109,7 @@ class DCASimulator:
 
                 total_invested += monthly_amount
 
-                # คำนวณมูลค่าพอร์ตโฟลิโอในวันนี้
+                # Calculate portfolio value on this day
                 portfolio_value = self._calculate_portfolio_value(trading_date, holdings, price_data_dict)
 
                 monthly_data.append({
@@ -161,21 +161,21 @@ class DCASimulator:
             return self._error_response(f"Simulation error: {str(e)[:200]}")
 
     def _get_close_column_name(self, hist: pd.DataFrame, symbol: str):
-        """ดึงชื่อคอลัมน์ Close Price"""
+        """Get Close price column name"""
         if 'Close' in hist.columns:
             return 'Close'
-        # ใช้ fallback: ลองหาคอลัมน์ที่มี Close ในชื่อ
+        # Fallback: look for column containing Close in name
         for col in hist.columns:
             if 'Close' in str(col).lower():
                 return col
         return None
 
     def _next_month(self, date: pd.Timestamp) -> pd.Timestamp:
-        """ย้ายไปเดือนถัดไปอย่างปลอดภัย จัดการวันที่เกินของเดือน"""
+        """Move to next month safely, handling month-end dates"""
         if date.month == 12:
             return pd.Timestamp(year=date.year + 1, month=1, day=min(date.day, 31))
         else:
-            # ดึงวันสุดท้ายของเดือนถัดไป
+            # Get last day of next month
             if date.month + 1 in [4, 6, 9, 11]:
                 last_day = 30
             elif date.month + 1 == 2:
@@ -187,8 +187,8 @@ class DCASimulator:
             return pd.Timestamp(year=date.year, month=date.month + 1, day=min(date.day, last_day))
 
     def _find_nearest_trading_day(self, target_date: pd.Timestamp, price_data_dict: dict, days_range: int = 5) -> pd.Timestamp:
-        """หาวันซื้อขายที่ใกล้เคียงที่สุดกับวันที่กำหนด"""
-        # ตรวจสอบว่าวันที่กำหนดเองมีข้อมูล
+        """Find the nearest trading day to the target date"""
+        # Check if target date itself has data
         for symbol in price_data_dict.keys():
             hist = price_data_dict[symbol]
             if 'Date' in hist.columns:
@@ -196,7 +196,7 @@ class DCASimulator:
                 if len(matching) > 0:
                     return target_date
 
-        # ค้นหาภายในช่วงวันที่กำหนด
+        # Search within date range
         for offset in range(1, days_range + 1):
             for direction in [-1, 1]:
                 check_date = target_date + timedelta(days=offset * direction)
@@ -210,7 +210,7 @@ class DCASimulator:
         return None
 
     def _get_price_at_date(self, date: pd.Timestamp, symbol: str, price_data_dict: dict):
-        """ดึงราคาของหุ้นในวันที่ระบุหรือใกล้เคียง"""
+        """Get stock price at specified or nearby date"""
         hist = price_data_dict.get(symbol)
         if hist is None or len(hist) == 0 or 'Date' not in hist.columns:
             return None
@@ -219,7 +219,7 @@ class DCASimulator:
         if close_col is None:
             return None
 
-        # จับคู่วันที่โดยตรง
+        # Direct date match
         try:
             matching = hist[hist['Date'].dt.date == date.date()]
             if len(matching) > 0:
@@ -228,7 +228,7 @@ class DCASimulator:
         except Exception:
             pass
 
-        # หาวันที่ใกล้เคียงที่สุดในช่วง 5 วัน
+        # Find nearest date within 5 days
         try:
             hist_copy = hist.copy()
             hist_copy['DateDiff'] = abs((hist_copy['Date'] - date).dt.days)
@@ -245,7 +245,7 @@ class DCASimulator:
         return None
 
     def _get_latest_price(self, symbol: str, price_data_dict: dict):
-        """ดึงราคาล่าสุดของหุ้น"""
+        """Get the latest price for a stock"""
         hist = price_data_dict.get(symbol)
         if hist is None or len(hist) == 0:
             return None
@@ -261,7 +261,7 @@ class DCASimulator:
             return None
 
     def _calculate_portfolio_value(self, as_of_date: pd.Timestamp, holdings: dict, price_data_dict: dict) -> float:
-        """คำนวณมูลค่ารวมของพอร์ตโฟลิโอตามการถือครองปัจจุบัน"""
+        """Calculate total portfolio value based on current holdings"""
         total_value = 0.0
         for symbol, shares in holdings.items():
             price = self._get_price_at_date(as_of_date, symbol, price_data_dict)
@@ -270,7 +270,7 @@ class DCASimulator:
         return total_value
 
     def _error_response(self, error_msg: str) -> dict:
-        """คืนพจนานุกรมการตอบสนองข้อผิดพลาด"""
+        """Return error response dictionary"""
         return {
             'success': False,
             'error': error_msg,

@@ -20,4 +20,4 @@ for symbol in symbols:
         print(f"❌ {symbol:6} → Failed to fetch")
 
 print(f"\n{'='*60}")
-print("👉 นำค่าเหล่านี้ไปเปรียบเทียบกับ Yahoo Finance เว็บแล้ว\n")
+print("👉 Compare these values with Yahoo Finance website\n")

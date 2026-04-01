@@ -1,18 +1,18 @@
-"""โมเดลข้อมูลพอร์ตโฟลิโอและการจัดการ"""
+"""Portfolio data model and management"""
 
 import pandas as pd
 from datetime import datetime
 
 
 class Portfolio:
-    """แสดงถึงพอร์ตโฟลิโอหุ้นที่มีการถือครอง"""
+    """Represents a stock portfolio with holdings"""
 
     def __init__(self, name: str):
         """
-        เริ่มต้นพอร์ตโฟลิโอ
+        Initialize portfolio
 
         Args:
-            name: ชื่อพอร์ตโฟลิโอ
+            name: Portfolio name
         """
         self.name = name
         self.holdings = pd.DataFrame(columns=['symbol', 'shares', 'purchase_price', 'purchase_date']).astype({
@@ -25,13 +25,13 @@ class Portfolio:
 
     def add_holding(self, symbol: str, shares: int, purchase_price: float, purchase_date: str):
         """
-        เพิ่มการถือครองหุ้นในพอร์ตโฟลิโอ
+        Add a stock holding to portfolio
 
         Args:
-            symbol: สัญลักษณ์ ticker ของหุ้น เช่น 'AAPL'
-            shares: จำนวนหุ้น
-            purchase_price: ราคาต่อหุ้นเมื่อซื้อ
-            purchase_date: วันที่ซื้อ (รูปแบบ YYYY-MM-DD)
+            symbol: Stock ticker symbol e.g., 'AAPL'
+            shares: Number of shares
+            purchase_price: Price per share when purchased
+            purchase_date: Purchase date (format: YYYY-MM-DD)
         """
         new_holding = pd.DataFrame([{
             'symbol': symbol.upper(),
@@ -42,11 +42,11 @@ class Portfolio:
         self.holdings = pd.concat([self.holdings, new_holding], ignore_index=True)
 
     def remove_holding(self, symbol: str):
-        """ลบการถือครองออกจากพอร์ตโฟลิโอ"""
+        """Remove a holding from portfolio"""
         self.holdings = self.holdings[self.holdings['symbol'] != symbol.upper()]
 
     def get_symbols(self) -> list:
-        """ดึงรายการสัญลักษณ์หุ้นที่มีอยู่ในพอร์ตโฟลิโอ"""
+        """Get list of stock symbols in portfolio"""
         return self.holdings['symbol'].unique().tolist()
     
     def save_to_csv(self, filepath: str):

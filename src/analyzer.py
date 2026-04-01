@@ -1,4 +1,4 @@
-"""การวิเคราะห์พอร์ตโฟลิโอและคำนวณประสิทธิผล"""
+"""Portfolio analysis and performance calculation"""
 
 import pandas as pd
 import numpy as np
@@ -9,20 +9,20 @@ from scipy import stats
 
 
 class PortfolioAnalyzer:
-    """วิเคราะห์ประสิทธิภาพและตัวชี้วัดของพอร์ตโฟลิโอ"""
+    """Analyze portfolio performance and metrics"""
 
     def __init__(self, portfolio: Portfolio):
         """
-        เริ่มต้นการวิเคราะห์
+        Initialize the analyzer
 
         Args:
-            portfolio: วัตถุ Portfolio ที่จะวิเคราะห์
+            portfolio: Portfolio object to analyze
         """
         self.portfolio = portfolio
         self.current_prices = None
 
     def fetch_current_prices(self):
-        """ดึงราคาปัจจุบันของการถือครองทั้งหมด"""
+        """Fetch current prices for all holdings"""
         symbols = self.portfolio.get_symbols()
         if symbols:
             price_data = StockDataFetcher.get_multiple_prices(symbols)
@@ -31,10 +31,10 @@ class PortfolioAnalyzer:
 
     def calculate_current_value(self) -> pd.DataFrame:
         """
-        คำนวณมูลค่าปัจจุบันของการถือครองแต่ละครั้ง
+        Calculate current value for each holding
 
         Returns:
-            DataFrame ที่มีการถือครองและมูลค่าปัจจุบัน
+            DataFrame with holdings and current values
         """
         if self.current_prices is None:
             self.fetch_current_prices()
@@ -45,7 +45,7 @@ class PortfolioAnalyzer:
         holdings['gain_loss_dollars'] = holdings['current_value'] - (holdings['shares'] * holdings['purchase_price'])
         holdings['gain_loss_percent'] = (holdings['gain_loss_dollars'] / (holdings['shares'] * holdings['purchase_price'])) * 100
 
-        # รับประกันว่าคอลัมน์ตัวเลขมี dtype ที่ถูกต้อง
+        # Ensure numeric columns have correct dtype
         holdings['current_price'] = pd.to_numeric(holdings['current_price'], errors='coerce')
         holdings['current_value'] = pd.to_numeric(holdings['current_value'], errors='coerce')
         holdings['gain_loss_dollars'] = pd.to_numeric(holdings['gain_loss_dollars'], errors='coerce')
@@ -55,10 +55,10 @@ class PortfolioAnalyzer:
 
     def calculate_portfolio_summary(self) -> dict:
         """
-        คำนวณตัวชี้วัดสรุปของพอร์ตโฟลิโอขั้นประถมศึกษา
+        Calculate portfolio summary metrics
 
         Returns:
-            พจนานุกรมที่มีตัวชี้วัดพอร์ตโฟลิโอ
+            Dictionary with portfolio metrics
         """
         holdings = self.calculate_current_value()
 
@@ -79,10 +79,10 @@ class PortfolioAnalyzer:
 
     def calculate_asset_allocation(self) -> pd.DataFrame:
         """
-        คำนวณเปอร์เซ็นต์การจัดสรรสินทรัพย์
+        Calculate asset allocation percentages
 
         Returns:
-            DataFrame ที่มีเปอร์เซ็นต์การจัดสรร
+            DataFrame with allocation percentages
         """
         holdings = self.calculate_current_value()
         total_value = holdings['current_value'].sum()
@@ -95,11 +95,11 @@ class PortfolioAnalyzer:
 
     def get_best_performers(self, top_n: int = 5) -> pd.DataFrame:
         """
-        ดึงการถือครองที่มีประสิทธิภาพดีที่สุด
+        Get top performing holdings
 
         Args:
             top_n: Number of top performers to return
-            
+
         Returns:
             DataFrame sorted by gain/loss percent
         """

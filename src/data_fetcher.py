@@ -1,4 +1,4 @@
-"""ดึงข้อมูลราคาหุ้นแบบเรียลไทม์ และประวัติจาก Yahoo Finance"""
+"""Fetch real-time stock prices and history from Yahoo Finance"""
 
 import yfinance as yf
 import pandas as pd
@@ -6,18 +6,18 @@ from datetime import datetime, timedelta
 
 
 class StockDataFetcher:
-    """ดึงข้อมูลตลาดหุ้นโดยใช้ Yahoo Finance"""
+    """Fetch stock market data using Yahoo Finance"""
 
     @staticmethod
     def get_current_price(symbol: str) -> float:
         """
-        ดึงราคาหุ้นปัจจุบัน
+        Fetch current stock price
 
         Args:
-            symbol: สัญลักษณ์ ticker ของหุ้น
+            symbol: Stock ticker symbol
 
         Returns:
-            ราคาปัจจุบันเป็นตัวเลขทศนิยม
+            Current price as float
         """
         ticker = yf.Ticker(symbol)
         data = ticker.history(period='1d')
@@ -28,14 +28,14 @@ class StockDataFetcher:
     @staticmethod
     def get_price_history(symbol: str, days: int = 90) -> pd.DataFrame:
         """
-        ดึงข้อมูลประวัติราคา
+        Fetch price history data
 
         Args:
-            symbol: สัญลักษณ์ ticker ของหุ้น
-            days: จำนวนวันของประวัติที่ดึง
+            symbol: Stock ticker symbol
+            days: Number of days of history to fetch
 
         Returns:
-            DataFrame ที่มี Date, Close, High, Low, Volume
+            DataFrame with Date, Close, High, Low, Volume
         """
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
