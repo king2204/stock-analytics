@@ -115,7 +115,7 @@ def test_fetch_is_retried_with_backoff(tmp_path, monkeypatch):
 @pytest.mark.parametrize("bad_row, message", [
     ("T9,2024-01-02,AAPL,HOLD,1,100,0", "side must be BUY or SELL"),
     ("T9,2024-01-02,XXXX,BUY,1,100,0", "symbols not in config"),
-    ("T9,2024-01-02,AAPL,BUY,-1,100,0", "shares and price must be > 0"),
+    ("T9,2024-01-02,AAPL,BUY,-1,100,0", "shares and price must be present and > 0"),
     ("T0001,2024-01-02,AAPL,BUY,1,100,0", "duplicate trade_id"),
 ])
 def test_invalid_transactions_fail_loudly(tmp_path, bad_row, message):
@@ -139,3 +139,30 @@ def test_future_today_is_capped_by_sample_source(tmp_path):
     cfg = sample_config(tmp_path)
     run_ingestion(cfg, symbols=["AAPL"], today=date.today() + timedelta(days=30))
     assert count(cfg, "select max(date) from raw.prices") <= date.today()
+
+
+@pytest.mark.parametrize("bad_row", [
+    "T9,2024-01-02,AAPL,BUY,,100,0",   # missing shares
+    "T9,2024-01-02,AAPL,BUY,1,,0",     # missing price
+])
+def test_blank_shares_or_price_fail_loudly(tmp_path, bad_row):
+    path = tmp_path / "tx.csv"
+    path.write_text("trade_id,trade_date,symbol,side,shares,price,fees\n" + bad_row + "\n")
+    with pytest.raises(ValueError, match="shares and price must be present and > 0"):
+        read_transactions(path, {"AAPL"})
+
+
+def test_retracted_corporate_action_is_removed_on_reload(tmp_path):
+    """If the provider stops reporting a dividend it sent earlier, the
+    warehouse must drop it instead of keeping a phantom dividend."""
+    class WithBogusDividend(SampleSource):
+        def fetch(self, symbol, start, end):
+            df = super().fetch(symbol, start, end)
+            df.loc[df.index[-1], "dividend"] = 9.99
+            return df
+
+    cfg = sample_config(tmp_path)
+    run_ingestion(cfg, symbols=["TSLA"], today=date(2024, 3, 1), source=WithBogusDividend())
+    assert count(cfg, "select count(*) from raw.corporate_actions where value = 9.99") == 1
+    run_ingestion(cfg, symbols=["TSLA"], today=date(2024, 3, 1))  # corrected feed
+    assert count(cfg, "select count(*) from raw.corporate_actions where value = 9.99") == 0

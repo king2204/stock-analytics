@@ -203,6 +203,12 @@ def load_actions(con: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> None:
     splits = df.loc[df["split_ratio"] > 0, ["symbol", "date", "split_ratio"]].rename(columns={"split_ratio": "value"})
     splits["action_type"] = "split"
     actions = pd.concat([dividends, splits], ignore_index=True)
+    # The fetched window is the source of truth for its dates: drop any action
+    # previously stored there so a provider retraction doesn't leave a phantom
+    # dividend/split behind.
+    for symbol, dates in df.groupby("symbol")["date"]:
+        con.execute("DELETE FROM raw.corporate_actions WHERE symbol = ? AND date BETWEEN ? AND ?",
+                    [symbol, dates.min(), dates.max()])
     if actions.empty:
         return
     actions["source"] = df["source"].iloc[0]
@@ -243,8 +249,9 @@ def read_transactions(path: Path, known_symbols: set[str]) -> pd.DataFrame:
         problems.append(f"duplicate trade_id: {df.loc[df['trade_id'].duplicated(), 'trade_id'].tolist()}")
     if not df["side"].isin(["BUY", "SELL"]).all():
         problems.append(f"side must be BUY or SELL: {df.loc[~df['side'].isin(['BUY', 'SELL']), 'trade_id'].tolist()}")
-    if (df["shares"] <= 0).any() or (df["price"] <= 0).any():
-        problems.append("shares and price must be > 0")
+    bad_amounts = df["shares"].isna() | df["price"].isna() | (df["shares"] <= 0) | (df["price"] <= 0)
+    if bad_amounts.any():
+        problems.append(f"shares and price must be present and > 0: {df.loc[bad_amounts, 'trade_id'].tolist()}")
     unknown = set(df["symbol"]) - known_symbols
     if unknown:
         problems.append(f"symbols not in config/pipeline.toml: {sorted(unknown)}")

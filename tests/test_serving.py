@@ -1,8 +1,12 @@
 """The serving layer: SQL analysis file, dashboard, and Dagster definitions."""
 
+from pathlib import Path
+
 import pytest
 
 from analysis.run_queries import load_queries, run
+
+APP = Path(__file__).resolve().parent.parent / "app.py"
 
 
 def test_every_business_question_runs(built_config):
@@ -18,7 +22,7 @@ def test_dashboard_renders_every_tab_without_errors(built_config, monkeypatch):
 
     monkeypatch.setenv("WAREHOUSE_PATH", str(built_config.warehouse_path))
     monkeypatch.setenv("SOURCE", "sample")
-    at = AppTest.from_file("../app.py", default_timeout=180).run()
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
     assert not at.exception, [e.value for e in at.exception]
     tiles = {m.label: m.value for m in at.metric}
     assert tiles["Portfolio value"].startswith("$")
