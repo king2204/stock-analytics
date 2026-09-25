@@ -1,0 +1,48 @@
+name: Daily pipeline
+
+# A zero-infrastructure scheduler: pulls real prices after the US close, rebuilds
+# the warehouse with dbt (all data tests must pass) and publishes it as an artifact.
+on:
+  schedule:
+    - cron: "45 22 * * 1-5"   # 22:45 UTC ~ 17:45/18:45 New York
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Restore previous warehouse (enables incremental loads)
+        uses: actions/cache/restore@v4
+        with:
+          path: data/warehouse
+          key: warehouse-${{ github.run_id }}
+          restore-keys: warehouse-
+
+      - name: Run pipeline
+        run: python -m pipelines.run --source yahoo
+
+      - name: Save warehouse
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/warehouse
+          key: warehouse-${{ github.run_id }}
+
+      - name: Business questions report
+        run: python -m analysis.run_queries > business_questions_report.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: warehouse-${{ github.run_number }}
+          path: |
+            data/warehouse/stocks.duckdb
+            dbt/target/run_results.json
+            business_questions_report.txt
+          retention-days: 14

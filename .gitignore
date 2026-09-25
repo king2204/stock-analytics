@@ -50,3 +50,20 @@ Thumbs.db
 # Optional data files (comment out if needed)
 # data/*.csv
 # data/*.xlsx
+
+# Generated data (rebuilt by `python -m pipelines.run`)
+data/warehouse/
+data/lake/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+logs/
+
+# Dagster
+.dagster/
+
+# Lint
+.ruff_cache/

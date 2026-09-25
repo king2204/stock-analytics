@@ -1,0 +1,10 @@
+.git
+.venv
+venv
+__pycache__
+data/warehouse
+data/lake
+dbt/target
+dbt/logs
+docs/screenshots
+*.ipynb_checkpoints

@@ -1,449 +1,160 @@
-# 📊 Portfolio Performance Dashboard
+# 📊 Stock Portfolio Analytics — Data Engineering + Analytics Project
 
-A **production-ready, real-time** stock portfolio analytics dashboard built with Streamlit and Yahoo Finance. Features real-time data visualization, risk analytics, and an advanced **DCA (Dollar-Cost Averaging) simulator** for data-driven investment decisions.
+An end-to-end data project. Market data is ingested **incrementally**, landed as Parquet, modeled
+into a **DuckDB star schema with dbt** (50 data tests), orchestrated by **Dagster** / GitHub
+Actions, and served by a **Streamlit** dashboard. The dashboard covers benchmark-relative
+performance, risk, strategy backtests and data-quality monitoring.
 
-*Perfect for practicing **Data Analytics**, **Business Intelligence**, and **Decision Support Systems** skills.*
-
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit 1.28+](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://github.com/streamlit/streamlit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-**🚀 [Live Demo - Deploy to Streamlit Cloud](#deployment)** | **📖 [Full Documentation](ARCHITECTURE.md)**
-
----
-
-## ✨ Key Features
-
-### 📈 Real-Time Dashboard (Tab 1)
-- **Live Stock Prices** from Yahoo Finance (auto-refresh 10-300 sec)
-- **8 Interactive Charts** built with Plotly
-- **Risk Analytics** - Volatility, Sharpe Ratio, Max Drawdown
-- **Correlation Analysis** - Stock relationships heatmap
-- **Period-Based Analysis** - 7/30/90 day analysis windows
-- **Thailand Time Zone** with live update indicator
-
-### 🎯 Investment Simulator (Tab 2) - *Unique Feature*
-**What-If Analysis for Strategic Decisions**
-- **Dollar-Cost Averaging (DCA)** backtester
-- "If I had invested $X/month starting 3 years ago, where would I be today?"
-- Compare simulated vs actual portfolio performance
-- Visualize growth trajectory with confidence metrics
-- Test different allocation strategies
-- **Business Value**: Demonstrates understanding of investment strategy and data-driven decision making
-
-### 📊 Visual Analytics Suite
-| Chart | Purpose | Business Insight |
-|-------|---------|------------------|
-| 🥧 Asset Allocation | Portfolio composition | Risk concentration |
-| 📈 Performance (%) | Return by stock | Top/bottom performers |
-| 💰 Current Value | Nominal holdings | Absolute value at risk |
-| 💵 Gain/Loss ($) | Dollar impact | Economic impact |
-| 🔗 Correlation | Stock relationships | Diversification quality |
-| ⚠️ Risk Metrics | Volatility & Sharpe | Risk-adjusted returns |
-| 📊 Invested vs Current | Purchase vs market | Strategic allocation success |
-| 🎯 Concentration | % per holding | Concentration risk (>30% flag) |
-
----
-
-## 📸 Screenshots
-
-### 📈 Dashboard Tab - Real-Time Portfolio Analytics
-
-**1. Dashboard Overview - Key Metrics & Analytics**
-![Dashboard Overview](docs/screenshots/Portfolio_dashboard_01_overview.png)
-
-**2. Risk Analysis - Volatility, Sharpe Ratio, Drawdown**
-![Risk Metrics](docs/screenshots/Portfolio_dashboard_02_risk_metrics.png)
-
-**3. Current Holdings - Stock Performance & Values**
-![Current Holdings](docs/screenshots/Portfolio_dashboard_03_current_holdings.png)
-
-**4. Correlation Analysis - Diversification Heatmap**
-![Correlation Analysis](docs/screenshots/Portfolio_dashboard_04_correlation_analysis.png)
-
-**5. Best & Worst Performers - Performance Ranking**
-![Performers](docs/screenshots/Portfolio_dashboard_05_performers.png)
-
----
-
-### 🎯 Investment Simulator Tab - DCA What-If Analysis
-
-**1. Investment Parameters - Configure DCA Strategy**
-![DCA Parameters](docs/screenshots/DCA_simulator_01_investment_parameters.png)
-
-**2. Growth Projection - Historical What-If Analysis**
-![DCA Growth](docs/screenshots/DCA_simulator_02_growth_projection.png)
-
-**3. Final Allocation - Simulated Portfolio Breakdown**
-![DCA Holdings](docs/screenshots/DCA_simulator_03_final_allocation.png)
-
----
-
-## 🏗️ Architecture & Data Flow
+[![CI](https://github.com/king2204/stock-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/king2204/stock-analytics/actions/workflows/ci.yml)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+![dbt](https://img.shields.io/badge/dbt-duckdb-orange)
+![Dagster](https://img.shields.io/badge/orchestration-dagster-purple)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Streamlit Web App                           │
-│  ┌──────────────────────────┬──────────────────────────────┐    │
-│  │   Tab 1: Dashboard       │   Tab 2: Simulator           │    │
-│  │  ✅ Real-time metrics    │  ✅ What-if analysis        │    │
-│  │  ✅ 8 interactive charts │  ✅ DCA backtesting         │    │
-│  │  ✅ Risk analytics       │  ✅ Allocation strategies   │    │
-│  └──────────────────────────┴──────────────────────────────┘    │
-│                          ▲                                       │
-└──────────────────────────┼───────────────────────────────────────┘
-                           │
-                ┌──────────┴──────────┐
-                │                     │
-         ┌──────▼──────┐      ┌──────▼──────┐
-         │ Analyzer    │      │  Simulator  │
-         │ (analyzer.  │      │ (simulator. │
-         │   py)       │      │   py)       │
-         └──────┬──────┘      └──────┬──────┘
-                │                    │
-         ┌──────▼────────────────────▼──────┐
-         │   StockDataFetcher               │
-         │   (data_fetcher.py)              │
-         │ • get_current_prices()           │
-         │ • get_price_history()            │
-         └──────┬─────────────────────────┬─┘
-                │                         │
-        ┌───────▼─────────┐       ┌───────▼──────────┐
-        │ Yahoo Finance   │       │ Historical Data  │
-        │ (yfinance API)  │       │ (3+ years)       │
-        └─────────────────┘       └──────────────────┘
+yfinance ──► ingest.py ──► lake/raw/*.parquet (immutable, per run)
+ (or the      │  incremental watermark + lookback, retries, quarantine
+  offline     ▼
+  sample) raw.* (DuckDB, upsert on natural key) ──► dbt: staging ► intermediate ► marts (+50 tests)
+                                                                                     │
+                     Dagster schedule / GitHub Actions cron (weekdays after US close)│
+                                                                                     ▼
+                                  Streamlit dashboard · SQL business questions · Jupyter report
 ```
 
-### Module Design
+## Quick start
 
-| Module | Responsibility | Key Functions |
-|--------|-----------------|---|
-| **portfolio.py** | Data model for holdings | `.add_holding()`, `.get_symbols()` |
-| **data_fetcher.py** | Yahoo Finance integration | `.get_multiple_prices()`, `.get_price_history()` |
-| **analyzer.py** | Core analytics engine | `.calculate_risk_metrics()`, `.calculate_correlation_matrix()` |
-| **simulator.py** *NEW* | DCA backtesting | `.simulate_dca()` with historical optimization |
-| **streamlit_advanced.py** | UI orchestration | 2 tabs, real-time refresh, responsive controls |
-
----
-
-## 📁 Project Structure
-
-```
-portfolio-performance-dashboard/
-├── streamlit_advanced.py          # 🎯 Main app (2 tabs: Dashboard & Simulator)
-├── src/
-│   ├── __init__.py
-│   ├── portfolio.py               # Portfolio data model
-│   ├── analyzer.py                # Analytics engine
-│   ├── data_fetcher.py            # Yahoo Finance integration
-│   ├── simulator.py               # 🆕 DCA simulation
-│   └── reporter.py                # Export utilities
-├── tests/
-│   ├── test_portfolio.py
-│   ├── test_analyzer.py
-│   └── test_simulator.py
-├── .streamlit/
-│   ├── config.toml                # Streamlit configuration
-│   └── secrets.toml.example       # Template for secrets (not committed)
-├── requirements_streamlit.txt     # Production deps
-├── requirements-dev.txt           # Dev deps (pytest, black, etc.)
-├── README.md                      # This file
-├── ARCHITECTURE.md                # Technical deep-dive
-├── DEPLOYMENT.md                  # Cloud deployment guide
-├── DEVELOPMENT.md                 # Contributor guide
-└── .gitignore                     # Git ignore rules
-```
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.9+
-- pip or conda
-
-### Installation (5 minutes)
-
-```bash
-# 1. Clone repo
-git clone https://github.com/yourusername/portfolio-performance-dashboard.git
-cd portfolio-performance-dashboard
-
-# 2. Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements_streamlit.txt
-
-# 4. Run the app
-streamlit run streamlit_advanced.py --server.port 8502
-```
-
-Open browser to: **http://localhost:8502**
-
-### First-Time Use
-
-**Dashboard Tab (📊)**
-1. See real-time portfolio metrics
-2. Toggle charts on/off in sidebar
-3. Select time period (7/30/90 days)
-4. Watch auto-refresh (default 60 sec)
-
-**Simulator Tab (🎯)**
-1. Set start date (3 years ago by default)
-2. Input monthly investment ($500 default)
-3. Choose allocation (equal weight or custom)
-4. Click "Run Simulation"
-5. Compare simulated vs actual results
-
----
-
-## 📊 Features Deep Dive
-
-### Dashboard Analytics
-
-**Real-Time Metrics**
-```
-Portfolio Value:  $5,741.20  (+$142.30)  ← Live update every 60s
-Total Return:     +2.54%     ← Percent change from invested
-Best Performer:   MSFT       +8.32%      ← Winner & loser
-Worst Performer:  AMZN       -1.45%
-Holdings:         4 stocks
-```
-
-**Time Period Selection**
-- **7 Days**: Short-term trends, recent volatility
-- **30 Days**: Standard monthly analysis (default)
-- **90 Days**: Quarterly performance, seasonal patterns
-
-**Risk Metrics Explained** (for business context)
-- **Volatility** (📊): Standard deviation of returns. Higher = riskier stock.
-- **Sharpe Ratio** (📈): Return per unit of risk. Higher = better risk-adjusted returns.
-- **Max Drawdown** (📉): Worst peak-to-trough decline. Indicates downside risk.
-
-### Investment Simulator
-
-**How It Works**
-1. Simulates monthly purchases at $X amount
-2. Uses actual historical prices from start date to today
-3. Respects actual trading days (weekends/holidays excluded)
-4. Calculates final portfolio value using today's market prices
-5. Compares gain/loss vs actual portfolio
-
-**Example Scenario**
-```
-Input:
-  - Start:    Jan 1, 2023 (3 years ago)
-  - End:      Mar 29, 2026 (today)
-  - Amount:   $500/month
-  - Strategy: Equal weight (25% each stock)
-
-Output:
-  - Total Invested:     $18,000   ($500 × 36 months)
-  - Portfolio Value:    $19,247
-  - Gain/Loss:          +$1,247  (+6.9%)
-  - Compare to Actual:  [comparison chart]
-```
-
-**Business Value**
-- Test investment strategies without real money
-- Make informed decisions on allocation
-- Understand impact of entry timing
-- Validate risk/reward assumptions
-
----
-
-## 🔧 Configuration
-
-### Modify Holdings
-
-Edit `streamlit_advanced.py` lines 100-104:
-```python
-portfolio.add_holding("AAPL", 10, 150.00, "2023-01-15")  # shares, price, date
-portfolio.add_holding("MSFT", 5, 300.00, "2023-03-20")
-portfolio.add_holding("GOOGL", 3, 2800.00, "2023-06-10")
-portfolio.add_holding("AMZN", 2, 3200.00, "2023-08-05")
-```
-
-### Streamlit Settings
-
-Edit `.streamlit/config.toml`:
-- Server port
-- Theme colors
-- Cache settings
-- Logging level
-
-### Time Zone
-
-Edit `streamlit_advanced.py` line 25 for your timezone:
-```python
-bangkok_tz = timezone(timedelta(hours=7))  # UTC+7 (Bangkok)
-# Change 7 to your timezone offset (e.g., -5 for EST)
-```
-
----
-
-## 📈 Data Source & Market Hours
-
-**Provider**: Yahoo Finance
-- **No API key required** - Uses public yfinance library
-- **Real-time pricing** during market hours
-- **Market Hours** (EDT): 9:30 AM - 4:00 PM, Mon-Fri
-- **Thailand Time**: 10:30 PM - 5:00 AM+1 (overnight)
-- **Update Frequency**: 10-300 seconds (configurable)
-- **Data Freshness**: Always fresh (no caching, ttl=0)
-
----
-
-## 🧪 Testing
-
-### Run Tests
 ```bash
 pip install -r requirements-dev.txt
-pytest tests/ -v
+
+# Offline demo: deterministic synthetic market, no API needed
+SOURCE=sample python -m pipelines.run
+streamlit run app.py
+
+# Real data from Yahoo Finance (the default source in config/pipeline.toml)
+python -m pipelines.run
 ```
 
-### Test Coverage
-```bash
-pytest tests/ --cov=src --cov-report=html
-open htmlcov/index.html
+Or with Docker: `docker compose up` (dashboard on :8501). Add `--profile orchestration` to also
+run Dagster on :3000.
+
+| Command | What it does |
+|---|---|
+| `make pipeline` | Incremental load + `dbt build` (models + tests) + freshness check |
+| `make test` | 45 pytest tests: unit tests plus full pipeline/dbt/dashboard/Dagster integration tests |
+| `make dagster` | Dagster UI with assets, lineage, retries and the daily schedule |
+| `make dbt-docs` | dbt docs site with model lineage graph |
+| `make analysis` | Runs the 10 SQL business questions in `analysis/business_questions.sql` |
+| `make notebook` | Re-executes the analysis report notebook |
+
+---
+
+## Data engineering
+
+### Ingestion — `pipelines/ingest.py`
+- **Incremental:** each ticker's high-water mark is `max(date)` in `raw.prices`. Only
+  `watermark − 5 days … today` is requested. The overlap lets late provider corrections overwrite stale rows.
+- **Idempotent:** `INSERT OR REPLACE` on the natural key `(symbol, date)`. Re-running a day never duplicates data (tested).
+- **Immutable landing zone:** every batch is also written to
+  `data/lake/raw/prices/symbol=X/ingest_date=D/<run_id>.parquet`, so the warehouse can be rebuilt without the API.
+- **Resilience:** per-ticker retries with exponential backoff. One failing ticker marks the run
+  `partial` instead of killing it.
+- **Quarantine:** rows with a close ≤ 0, high < low, a close outside the high/low range, or a duplicate
+  date go to `raw.prices_quarantine` with a reason. They are never silently dropped.
+- **Run metadata:** every run is recorded in `meta.ingestion_runs` (status, rows, failures) and shown on the dashboard.
+- **Pluggable sources:** `YahooSource` for real data, `SampleSource` for a deterministic synthetic market.
+  The sample has real split and dividend events, so tests and CI never depend on the network.
+
+### Modeling — `dbt/` (DuckDB)
+
+| Layer | Models |
+|---|---|
+| staging (views) | `stg_prices`, `stg_dividends`, `stg_splits`, `stg_tickers`, `stg_transactions` |
+| intermediate | `int_daily_returns` (total return from close + dividends), `int_transactions_split_adjusted`, `int_trade_ledger` (average-cost method via **recursive CTE**) |
+| marts (tables) | `dim_date`, `dim_ticker`, `fct_daily_prices`, `fct_position_daily`, `fct_portfolio_daily` (TWR, drawdown, benchmark), `mart_holdings_current`, `mart_monthly_returns`, `mart_ticker_risk` |
+
+Real-world issues the models handle:
+- **Stock splits:** trades are entered as the broker showed them on the day, then restated by every
+  later split. 1 AMZN share at $3,022 in 2022 becomes 20 shares at $151.10.
+- **Restated `adj_close`:** providers rewrite adjusted prices backwards whenever a dividend is paid,
+  which an incremental loader only partly picks up. Total return is therefore recomputed in SQL from
+  `close + dividend`.
+- **Cash flows:** portfolio return is time-weighted (it removes the effect of deposits and withdrawals).
+  Money-weighted XIRR is shown alongside it.
+
+### Data quality — 50 dbt tests + source freshness
+Custom generic tests (`unique_combination_of_columns`, `positive`, `within_range`, `not_in_future`),
+relationships, accepted values, and singular business-rule tests:
+
+| Test | Catches |
+|---|---|
+| `assert_transaction_price_near_market` | A trade price >30% away from that day's close. This catches typos and pre/post-split mix-ups: **the original sample file had GOOGL at $2,800 in June 2023, when the stock traded near $124** |
+| `assert_no_unexplained_price_jumps` | A >50% daily move with no split recorded (an unadjusted feed) |
+| `assert_portfolio_reconciles_with_positions` | The portfolio mart drifting from the sum of its holdings |
+| `int_trade_ledger.shares_after >= 0` | Selling more shares than you hold |
+| source freshness | Prices older than 4 days (warn) / 7 days (error) |
+
+### Orchestration
+- **Dagster** (`pipelines/dagster_defs.py`): `raw_market_data` → `dbt_warehouse` assets, a freshness
+  asset check, a retry policy with exponential backoff, and a weekday 17:30 New York schedule.
+- **GitHub Actions:** `ci.yml` runs lint, `dbt parse` and the full test suite on every PR.
+  `daily-pipeline.yml` is a zero-infrastructure daily cron that pulls Yahoo data incrementally
+  (warehouse kept in the Actions cache) and publishes the DuckDB file plus test results as an artifact.
+
+## Data analytics
+
+The **dashboard** (`app.py`) reads only from the warehouse marts:
+
+| Tab | Contents |
+|---|---|
+| Overview | Value vs money put in, TWR vs benchmark, XIRR, allocation by ticker/sector, concentration warning, P&L, split-restated trade ledger |
+| Performance | Cumulative return vs SPY; Sharpe, Sortino, Calmar; beta, alpha, tracking error, information ratio, up/down capture; monthly return and excess-return heatmaps |
+| Risk | Drawdown vs benchmark, rolling volatility and beta, VaR/CVaR histogram in dollars, per-ticker risk table, correlation matrix |
+| Strategy Lab | Lump sum vs DCA vs DCA with quarterly rebalancing (same money), efficient frontier with max-Sharpe/min-vol picks, Monte Carlo block-bootstrap projection |
+| Pipeline & Data Quality | Last runs, dbt test pass rate, freshness per ticker, table row counts, quarantined rows, a "run pipeline" button |
+
+Also included:
+- **`analysis/business_questions.sql`:** 10 SQL questions, e.g. did we beat the market, profit
+  attribution, sector HHI, monthly hit rate, drawdown episodes and recovery time, dividend income,
+  trade timing vs buying the benchmark, data coverage.
+- **`notebooks/portfolio_analysis.ipynb`:** a report structured as question → method → findings
+  (computed from the data) → recommendations and caveats.
+- **`src/metrics.py` / `src/strategies.py`:** tested, dependency-light implementations of every metric and backtest.
+
+## Screenshots
+
+These were taken in **sample mode**, so the prices are synthetic.
+
+| | |
+|---|---|
+| ![Overview](docs/screenshots/v2-01-overview.png) | ![Performance](docs/screenshots/v2-02-performance.png) |
+| ![Risk](docs/screenshots/v2-03-risk.png) | ![Strategy Lab](docs/screenshots/v2-04-strategy-lab.png) |
+| ![Pipeline](docs/screenshots/v2-05-pipeline-data-quality.png) | |
+
+## Using your own portfolio
+1. Add tickers (with sector) to `config/pipeline.toml`. Keep the benchmark in the list.
+2. Put your trades in `data/portfolio_transactions.csv`, exactly as your broker shows them. Splits are handled for you.
+3. Run `python -m pipelines.run`. If a trade price looks wrong, the dbt build fails and tells you which trade.
+
+## Project layout
+```
+config/pipeline.toml        tickers, benchmark, source, paths
+pipelines/                  sources, incremental ingestion, runner CLI, Dagster definitions
+dbt/                        staging / intermediate / marts models, generic + singular tests
+src/                        metrics, strategies, charts, warehouse query layer
+app.py                      Streamlit dashboard (serving layer)
+analysis/                   SQL business questions + runner
+notebooks/                  analysis report
+tests/                      pytest (unit + integration)
+.github/workflows/          CI and the daily scheduled pipeline
 ```
 
-### What's Tested
-- Portfolio data model operations
-- Analytics calculations  (volatility, Sharpe, correlation)
-- Simulator DCA algorithm
-- Error handling & edge cases
+The pre-warehouse dashboards (`streamlit_advanced.py`, `dashboard*.py`, `advanced_dashboard.py`,
+`streamlit_app.py`) and their `src/analyzer.py`-era modules are still in the repo for reference only.
+They are not part of the maintained code and are excluded from linting.
 
----
+## Limitations
+- The cost basis uses the average-cost method, not tax lots (FIFO).
+- At portfolio level, dividends are counted as cash, not reinvested.
+- Yahoo Finance is unofficial and rate-limited. For production use, swap in a paid API by adding a `PriceSource`.
+- Backtests, frontier and Monte Carlo use history only and are not forecasts.
 
-## 🚀 Deployment
-
-### Streamlit Community Cloud (Recommended - Free)
-
-1. Push code to GitHub
-2. Visit [share.streamlit.io](https://share.streamlit.io)
-3. "Create app" → select repo, branch, main file
-4. Deploy (takes 1-2 minutes)
-
-**Automatic Redeploy**: Any push to main branch auto-redeploys
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for full guide.
-
-### Docker (Self-Hosted)
-
-```bash
-docker build -t portfolio-dashboard .
-docker run -p 8501:8501 portfolio-dashboard
-```
-
-### AWS, Google Cloud, Azure
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for step-by-step guides.
-
----
-
-## 📚 Documentation
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical design, module details, data flow
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Cloud deployment, Docker, monitoring
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Contributing, code style, adding features
-
----
-
-## ⚙️ Technology Stack
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Frontend | Streamlit 1.28+ | Interactive web UI |
-| Data Processing | Pandas, NumPy | Manipulation & calculations |
-| Visualization | Plotly | Interactive charts |
-| Data Source | yfinance | Yahoo Finance API |
-| Scientific | SciPy | Statistical calculations |
-| Testing | pytest | Unit testing |
-| Code Quality | Black, Flake8, mypy | Linting & formatting |
-
----
-
-## ❓ FAQ
-
-**Q: How do I update the stocks in my portfolio?**
-A: Edit `streamlit_advanced.py` line 100-104 with your symbols and purchase details.
-
-**Q: Why no real-time update outside market hours?**
-A: Yahoo Finance only provides prices during US market hours (9:30 AM - 4:00 PM EDT). Prices freeze after market close.
-
-**Q: Can I export data?**
-A: Yes! Use the Holdings table export feature or check `reporter.py` for more export options.
-
-**Q: How do I handle dividends?**
-A: Currently not included in simulator. See `DEVELOPMENT.md` for adding dividend support.
-
-**Q: Is my data secure?**
-A: All data is public stock data from Yahoo Finance. No personal/sensitive data stored.
-
-**Q: Can I run this on my own server?**
-A: Yes! Docker or any Python-capable server. See [DEPLOYMENT.md](DEPLOYMENT.md).
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! See [DEVELOPMENT.md](DEVELOPMENT.md) for:
-- Code style guidelines
-- How to add new metrics/charts
-- Testing requirements
-- Pull request process
-
-```bash
-# Example: Add a new feature
-git checkout -b feature/my-feature
-# ... make changes ...
-pytest tests/  # Run tests
-git push origin feature/my-feature
-# Open PR
-```
-
----
-
-## 📝 License
-
-MIT License - See [LICENSE](LICENSE) for full text.
-
-Free for personal, educational, and commercial use with attribution.
-
----
-
-## 🙏 Acknowledgments
-
-- **Yahoo Finance** - Free stock data via yfinance
-- **Streamlit** - Elegant web framework
-- **Plotly** - Beautiful interactive visualizations
-- **SciPy/NumPy/Pandas** - Data science foundations
-
----
-
-## 🎯 For Interviews & Hiring Teams:
-
-This project demonstrates:
-✅ **Data Engineering** - ETL pipeline, data fetching, transformation
-✅ **Data Analytics** - Multi-dimensional analysis, time-series processing
-✅ **Business Intelligence** - Dashboarding, decision support
-✅ **Software Engineering** - Modular architecture, testing, deployment
-✅ **Full-Stack** - Backend logic + interactive frontend
-✅ **Cloud Deployment** - Production-ready, scalable
-
-**Key Highlights for DA Role**:
-- Real-time data processing with Streamlit
-- Risk analytics & portfolio optimization concepts
-- What-if analysis & scenario modeling (DCA simulator)
-- Clean, maintainable Python code
-- Comprehensive documentation
-- Deployed to production (Streamlit Cloud)
-
----
-
-**Happy investing & coding! 📈💻**
-
-*Disclaimer: For educational purposes. Always consult a financial advisor before investing.*

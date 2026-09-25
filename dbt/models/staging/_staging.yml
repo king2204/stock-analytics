@@ -1,0 +1,61 @@
+version: 2
+
+models:
+  - name: stg_prices
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: price_date
+        tests: [not_null, not_in_future]
+      - name: close
+        tests: [not_null, positive]
+      - name: volume
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination: [symbol, price_date]
+
+  - name: stg_dividends
+    columns:
+      - name: dividend_per_share
+        tests: [positive]
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination: [symbol, ex_date]
+
+  - name: stg_splits
+    columns:
+      - name: split_ratio
+        tests: [positive]
+
+  - name: stg_tickers
+    columns:
+      - name: symbol
+        tests: [unique, not_null]
+
+  - name: stg_transactions
+    columns:
+      - name: trade_id
+        tests: [unique, not_null]
+      - name: side
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['BUY', 'SELL']
+      - name: shares
+        tests: [positive]
+      - name: price
+        tests: [positive]
+      - name: trade_date
+        tests: [not_null, not_in_future]
+      - name: symbol
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_tickers')
+                field: symbol

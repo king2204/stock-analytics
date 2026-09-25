@@ -1,0 +1,58 @@
+# Pipeline configuration.
+# Any [pipeline] key can be overridden with an environment variable of the
+# same name in upper case, e.g. SOURCE=sample or WAREHOUSE_PATH=/tmp/x.duckdb
+
+[pipeline]
+# "yahoo" pulls real data with yfinance; "sample" generates a deterministic
+# synthetic market (no network) for demos, tests and CI.
+source = "yahoo"
+start_date = "2021-01-01"
+warehouse_path = "data/warehouse/stocks.duckdb"
+lake_path = "data/lake"
+transactions_path = "data/portfolio_transactions.csv"
+# Re-fetch this many days before the last loaded date so late revisions
+# from the provider overwrite stale rows (the load is an upsert).
+lookback_days = 5
+benchmark = "SPY"
+risk_free_rate = 0.04
+
+[[tickers]]
+symbol = "AAPL"
+name = "Apple Inc."
+sector = "Technology"
+
+[[tickers]]
+symbol = "MSFT"
+name = "Microsoft Corp."
+sector = "Technology"
+
+[[tickers]]
+symbol = "GOOGL"
+name = "Alphabet Inc. (Class A)"
+sector = "Communication Services"
+
+[[tickers]]
+symbol = "AMZN"
+name = "Amazon.com Inc."
+sector = "Consumer Discretionary"
+
+[[tickers]]
+symbol = "TSLA"
+name = "Tesla Inc."
+sector = "Consumer Discretionary"
+
+[[tickers]]
+symbol = "NVDA"
+name = "NVIDIA Corp."
+sector = "Technology"
+
+[[tickers]]
+symbol = "JPM"
+name = "JPMorgan Chase & Co."
+sector = "Financials"
+
+[[tickers]]
+symbol = "SPY"
+name = "SPDR S&P 500 ETF"
+sector = "Benchmark"
+is_benchmark = true

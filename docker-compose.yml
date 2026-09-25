@@ -1,0 +1,38 @@
+# docker compose up             -> build warehouse once, then serve the dashboard on :8501
+# docker compose --profile orchestration up   -> also start Dagster (UI on :3000, daily schedule)
+# SOURCE=sample docker compose up             -> offline synthetic data
+x-app: &app
+  build:
+    context: .
+    args:
+      INSTALL_DEV: "true"
+  image: stock-analytics:latest
+  environment:
+    SOURCE: ${SOURCE:-yahoo}
+    WAREHOUSE_PATH: /data/warehouse/stocks.duckdb
+    LAKE_PATH: /data/lake
+  volumes:
+    - warehouse:/data
+    - ./data/portfolio_transactions.csv:/app/data/portfolio_transactions.csv:ro
+
+services:
+  pipeline:
+    <<: *app
+    command: ["python", "-m", "pipelines.run"]
+    restart: "no"
+
+  dashboard:
+    <<: *app
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    ports: ["8501:8501"]
+
+  dagster:
+    <<: *app
+    profiles: ["orchestration"]
+    command: ["dagster", "dev", "-m", "pipelines.dagster_defs", "-h", "0.0.0.0", "-p", "3000"]
+    ports: ["3000:3000"]
+
+volumes:
+  warehouse:
