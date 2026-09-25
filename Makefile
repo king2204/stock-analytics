@@ -5,13 +5,13 @@ install:        ## install runtime + dev dependencies
 
 demo:           ## offline end-to-end: synthetic data -> warehouse -> dashboard
 	SOURCE=sample python -m pipelines.run
-	streamlit run app.py
+	python -m streamlit run app.py
 
 pipeline:       ## incremental load from the configured source + dbt build
 	python -m pipelines.run
 
 dashboard:
-	streamlit run app.py
+	python -m streamlit run app.py
 
 test:
 	pytest -q
