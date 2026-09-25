@@ -22,6 +22,7 @@ import pandas as pd
 
 from pipelines.config import PROJECT_ROOT, PipelineConfig, load_config
 from pipelines.ingest import run_ingestion
+from pipelines.locking import pipeline_lock
 
 log = logging.getLogger("pipeline")
 DBT_DIR = PROJECT_ROOT / "dbt"
@@ -74,6 +75,11 @@ def record_dbt_results(cfg: PipelineConfig, run_id: str) -> None:
 
 def run_pipeline(cfg: PipelineConfig, full_refresh: bool = False, skip_dbt: bool = False,
                  symbols: list[str] | None = None) -> int:
+    with pipeline_lock(cfg.warehouse_path):
+        return _run_pipeline(cfg, full_refresh, skip_dbt, symbols)
+
+
+def _run_pipeline(cfg: PipelineConfig, full_refresh: bool, skip_dbt: bool, symbols: list[str] | None) -> int:
     result = run_ingestion(cfg, symbols=symbols, full_refresh=full_refresh)
     log.info("ingestion %s: run_id=%s rows=%d quarantined=%d failed=%s", result.status, result.run_id,
              result.rows_loaded, result.rows_quarantined, list(result.tickers_failed) or "none")
@@ -83,12 +89,14 @@ def run_pipeline(cfg: PipelineConfig, full_refresh: bool = False, skip_dbt: bool
         return 0
 
     dbt_vars = ["--vars", f"{{benchmark: {cfg.benchmark}, risk_free_rate: {cfg.risk_free_rate}}}"]
+    log.info("building warehouse models and running data tests (dbt build)")
     build = run_dbt(cfg, "build", *dbt_vars, check=False)
     record_dbt_results(cfg, result.run_id)
     if build.returncode != 0:
         raise RuntimeError(f"dbt build failed with exit code {build.returncode}")
     # Freshness is a warning signal (weekends/holidays), so it never fails the run.
     run_dbt(cfg, "source", "freshness", *dbt_vars, check=False)
+    log.info("pipeline finished")
     return 0 if result.status == "success" else 2
 
 

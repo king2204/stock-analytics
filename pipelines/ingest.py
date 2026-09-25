@@ -26,6 +26,7 @@ import duckdb
 import pandas as pd
 
 from pipelines.config import PipelineConfig
+from pipelines.locking import friendly_lock_error
 from pipelines.sources import PriceSource, get_source
 
 log = logging.getLogger(__name__)
@@ -124,7 +125,10 @@ class IngestResult:
 
 def connect(path: Path) -> duckdb.DuckDBPyConnection:
     path.parent.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(path))
+    try:
+        con = duckdb.connect(str(path))
+    except duckdb.IOException as exc:
+        raise friendly_lock_error(exc) from exc
     con.execute(DDL)
     return con
 
@@ -310,6 +314,7 @@ def run_ingestion(cfg: PipelineConfig, symbols: list[str] | None = None, full_re
                             symbol, source.name)
                 watermarks.pop(symbol, None)
             start, end = plan_window(symbol, watermarks, cfg, today, full_refresh)
+            log.info("%s: fetching %s..%s from %s", symbol, start, end, source.name)
             try:
                 df = fetch_with_retry(source, symbol, start, end)
             except Exception as exc:

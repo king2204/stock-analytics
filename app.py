@@ -6,13 +6,16 @@ Run with:  streamlit run app.py
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 from pipelines.config import load_config
+from pipelines.locking import WarehouseBusyError
 from pipelines.run import run_pipeline
 from src import charts, metrics, strategies
 from src.warehouse import Warehouse
@@ -20,6 +23,19 @@ from src.warehouse import Warehouse
 st.set_page_config(page_title="Portfolio Analytics", page_icon="📊", layout="wide")
 
 CFG = load_config()
+
+
+class StatusLogHandler(logging.Handler):
+    """Stream the pipeline's own log lines into the Streamlit status box, so a
+    long Yahoo download shows progress instead of looking frozen."""
+
+    def __init__(self, box):
+        super().__init__(level=logging.INFO)
+        self.box = box
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.name.startswith(("pipelines", "pipeline")):
+            self.box.write(f"`{record.getMessage()}`")
 
 
 # --------------------------------------------------------------------------- data
@@ -66,9 +82,23 @@ def load_all(path: str, _version: float) -> dict:
     }
 
 
-fallback_note = bootstrap_warehouse()
-version = os.path.getmtime(CFG.warehouse_path)
-data = load_all(str(CFG.warehouse_path), version)
+def load_when_free(attempts: int = 10, wait_seconds: float = 3.0) -> tuple[str | None, dict]:
+    """While a pipeline run is writing, DuckDB refuses readers from other
+    processes for a few seconds. Wait and retry instead of crashing."""
+    for attempt in range(attempts):
+        try:
+            note = bootstrap_warehouse()
+            return note, load_all(str(CFG.warehouse_path), os.path.getmtime(CFG.warehouse_path))
+        except WarehouseBusyError as exc:
+            if attempt == attempts - 1:
+                st.warning(f"⏳ The warehouse is being updated right now, so it can't be read yet. {exc}\n\n"
+                           "Reload this page in a minute.")
+                st.stop()
+            time.sleep(wait_seconds)
+    raise AssertionError("unreachable")
+
+
+fallback_note, data = load_when_free()
 pf_all: pd.DataFrame = data["pf"]
 holdings: pd.DataFrame = data["holdings"]
 bench = CFG.benchmark
@@ -368,23 +398,34 @@ with tab_pipeline:
         st.caption(f"Switching from **{last_source}** to **{source_choice}** reloads the full price history "
                    "for every ticker, so the two sources are never mixed.")
     if st.button("▶️ Run incremental load + dbt build"):
-        with st.spinner("Running pipeline…"):
+        error, code = None, 1
+        with st.status(f"Running the pipeline with **{source_choice}** data…", expanded=True) as status:
+            handler = StatusLogHandler(status)
+            logging.getLogger().addHandler(handler)
+            logging.getLogger().setLevel(logging.INFO)
             try:
                 code = run_pipeline(load_config(source=source_choice))
-                error = None
             except Exception as exc:  # noqa: BLE001 - show the failure instead of crashing the page
-                code, error = 1, str(exc)
+                error = str(exc)
+            finally:
+                logging.getLogger().removeHandler(handler)
+            if error is None and code == 0:
+                status.update(label="Pipeline finished: data loaded and all data tests passed.", state="complete")
+            else:
+                status.update(label="Pipeline did not finish cleanly — details below.", state="error")
         st.cache_data.clear()
         if error is None and code == 0:
-            st.success("Pipeline finished: data loaded and all dbt tests passed.")
             st.rerun()
         elif error is None:
             st.warning(f"Pipeline finished with exit code {code}: some tickers could not be loaded. "
                        "See the ingestion runs table above.")
         else:
             st.error(f"Pipeline failed: {error}")
-            failing = Warehouse(CFG.warehouse_path).dbt_results()
-            failing = failing[failing["status"].isin(["fail", "error"])]
+            try:
+                failing = Warehouse(CFG.warehouse_path).dbt_results()
+                failing = failing[failing["status"].isin(["fail", "error"])]
+            except Exception:  # noqa: BLE001 - the details are optional, the error above is not
+                failing = pd.DataFrame()
             if not failing.empty:
                 st.markdown("**Failing data checks** (the dashboard still shows the last good build):")
                 st.dataframe(failing[["name", "status", "failures", "message"]], hide_index=True,

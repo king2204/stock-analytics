@@ -11,6 +11,8 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from pipelines.locking import friendly_lock_error
+
 
 class Warehouse:
     def __init__(self, path: Path | str):
@@ -19,7 +21,11 @@ class Warehouse:
             raise FileNotFoundError(f"No warehouse at {self.path}. Run `python -m pipelines.run` first.")
 
     def query(self, sql: str, params: list | None = None) -> pd.DataFrame:
-        with duckdb.connect(str(self.path), read_only=True) as con:
+        try:
+            con = duckdb.connect(str(self.path), read_only=True)
+        except duckdb.IOException as exc:
+            raise friendly_lock_error(exc) from exc
+        with con:
             return con.execute(sql, params or []).df()
 
     def has_marts(self) -> bool:
