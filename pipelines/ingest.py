@@ -138,6 +138,19 @@ def get_watermarks(con: duckdb.DuckDBPyConnection) -> dict[str, date]:
     return {symbol: d for symbol, d in rows}
 
 
+def reset_if_source_changed(con: duckdb.DuckDBPyConnection, symbol: str, source_name: str) -> bool:
+    """Never mix sources in one price history: a sample-data history topped up
+    with a few days of real quotes would be one long fake series with a jump.
+    When the stored source differs, drop the symbol so it is reloaded in full."""
+    stored = {row[0] for row in con.execute(
+        "SELECT DISTINCT source FROM raw.prices WHERE symbol = ?", [symbol]).fetchall()}
+    if not stored or stored == {source_name}:
+        return False
+    con.execute("DELETE FROM raw.prices WHERE symbol = ?", [symbol])
+    con.execute("DELETE FROM raw.corporate_actions WHERE symbol = ?", [symbol])
+    return True
+
+
 def plan_window(symbol: str, watermarks: dict[str, date], cfg: PipelineConfig,
                 today: date, full_refresh: bool) -> tuple[date, date]:
     """Date range to request for one ticker."""
@@ -292,6 +305,10 @@ def run_ingestion(cfg: PipelineConfig, symbols: list[str] | None = None, full_re
 
         watermarks = get_watermarks(con)
         for symbol in symbols:
+            if reset_if_source_changed(con, symbol, source.name):
+                log.warning("%s: stored data came from another source; reloading full history from %s",
+                            symbol, source.name)
+                watermarks.pop(symbol, None)
             start, end = plan_window(symbol, watermarks, cfg, today, full_refresh)
             try:
                 df = fetch_with_retry(source, symbol, start, end)

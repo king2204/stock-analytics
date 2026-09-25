@@ -364,9 +364,31 @@ with tab_pipeline:
     st.subheader("Run the pipeline")
     source_choice = st.radio("Source", ["yahoo", "sample"], horizontal=True,
                              index=0 if CFG.source == "yahoo" else 1)
+    if source_choice != last_source:
+        st.caption(f"Switching from **{last_source}** to **{source_choice}** reloads the full price history "
+                   "for every ticker, so the two sources are never mixed.")
     if st.button("▶️ Run incremental load + dbt build"):
         with st.spinner("Running pipeline…"):
-            code = run_pipeline(load_config(source=source_choice))
+            try:
+                code = run_pipeline(load_config(source=source_choice))
+                error = None
+            except Exception as exc:  # noqa: BLE001 - show the failure instead of crashing the page
+                code, error = 1, str(exc)
         st.cache_data.clear()
-        (st.success if code == 0 else st.warning)(f"Pipeline finished with exit code {code}.")
-        st.rerun()
+        if error is None and code == 0:
+            st.success("Pipeline finished: data loaded and all dbt tests passed.")
+            st.rerun()
+        elif error is None:
+            st.warning(f"Pipeline finished with exit code {code}: some tickers could not be loaded. "
+                       "See the ingestion runs table above.")
+        else:
+            st.error(f"Pipeline failed: {error}")
+            failing = Warehouse(CFG.warehouse_path).dbt_results()
+            failing = failing[failing["status"].isin(["fail", "error"])]
+            if not failing.empty:
+                st.markdown("**Failing data checks** (the dashboard still shows the last good build):")
+                st.dataframe(failing[["name", "status", "failures", "message"]], hide_index=True,
+                             use_container_width=True)
+            if source_choice == "yahoo":
+                st.caption("If Yahoo Finance is unreachable or rate-limited, try again later or switch to "
+                           "**sample**.")

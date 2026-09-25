@@ -50,3 +50,19 @@ def test_dagster_assets_materialize_end_to_end(tmp_path, monkeypatch):
     assert result.success
     meta = result.asset_materializations_for_node("raw_market_data")[0].metadata
     assert meta["status"].value == "success"
+
+
+def test_failed_pipeline_run_from_dashboard_shows_error_instead_of_crashing(built_config, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    def failing_pipeline(cfg, **kwargs):
+        raise RuntimeError("dbt build failed with exit code 1")
+
+    monkeypatch.setenv("WAREHOUSE_PATH", str(built_config.warehouse_path))
+    monkeypatch.setenv("SOURCE", "sample")
+    monkeypatch.setattr("pipelines.run.run_pipeline", failing_pipeline)
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    run_button = next(b for b in at.button if "Run incremental" in b.label)
+    run_button.click().run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any("Pipeline failed" in e.value for e in at.error)

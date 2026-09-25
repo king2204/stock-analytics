@@ -166,3 +166,24 @@ def test_retracted_corporate_action_is_removed_on_reload(tmp_path):
     assert count(cfg, "select count(*) from raw.corporate_actions where value = 9.99") == 1
     run_ingestion(cfg, symbols=["TSLA"], today=date(2024, 3, 1))  # corrected feed
     assert count(cfg, "select count(*) from raw.corporate_actions where value = 9.99") == 0
+
+
+def test_switching_source_reloads_full_history_instead_of_mixing(tmp_path):
+    """Loading sample data and then another source must not leave the old
+    source's history underneath the new source's recent days."""
+    class OtherFeed(SampleSource):
+        name = "other"
+
+        def fetch(self, symbol, start, end):
+            df = super().fetch(symbol, start, end)
+            df[["open", "high", "low", "close", "adj_close"]] *= 2  # clearly different prices
+            return df.iloc[1:]  # and a different first date
+
+    cfg = sample_config(tmp_path)
+    run_ingestion(cfg, symbols=["AAPL"], today=date(2024, 3, 1))
+    first_date = count(cfg, "select min(date) from raw.prices")
+    result = run_ingestion(cfg, symbols=["AAPL"], today=date(2024, 3, 8), source=OtherFeed())
+
+    assert result.rows_loaded > 700  # full history, not a 5-day top-up
+    assert count(cfg, "select string_agg(distinct source) from raw.prices") == "other"
+    assert count(cfg, "select min(date) from raw.prices") > first_date  # old-only rows gone
