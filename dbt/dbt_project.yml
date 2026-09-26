@@ -1,0 +1,29 @@
+name: stock_analytics
+version: "1.0.0"
+config-version: 2
+profile: stock_analytics
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+vars:
+  benchmark: SPY
+  risk_free_rate: 0.04
+  # Max allowed gap between a trade price and that day's close before the
+  # trade is flagged as a likely typo / pre-vs-post split mix-up.
+  trade_price_tolerance: 0.30
+
+models:
+  stock_analytics:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table

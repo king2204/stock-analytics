@@ -1,0 +1,23 @@
+[project]
+name = "stock-analytics"
+version = "2.0.0"
+description = "Portfolio analytics: incremental market-data pipeline, dbt/DuckDB warehouse and Streamlit dashboard"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# legacy dashboards kept for reference; not part of the maintained code base
+extend-exclude = ["dashboard.py", "dashboard_realtime.py", "advanced_dashboard.py", "streamlit_app.py",
+                  "streamlit_advanced.py", "check_prices.py", "main.py", "lambda_handler.py", "wsgi.py",
+                  "src/analyzer.py", "src/data_fetcher.py", "src/portfolio.py", "src/reporter.py",
+                  "src/simulator.py", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501", "B905"]  # zip() over fixed palettes truncates on purpose
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning:dagster.*"]

@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: int_daily_returns
+    description: Split-adjusted prices with price and total (dividend-inclusive) daily returns.
+  - name: int_transactions_split_adjusted
+    description: Trades restated into current share units using all later splits.
+    columns:
+      - name: split_factor
+        tests: [positive]
+  - name: int_trade_ledger
+    description: Average-cost running position after every trade.
+    columns:
+      - name: shares_after
+        tests:
+          - within_range:
+              arguments:
+                min_value: -0.000001
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination: [symbol, seq]

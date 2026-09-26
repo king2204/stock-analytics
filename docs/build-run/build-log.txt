@@ -1,0 +1,102 @@
+2026-09-25 06:00:56,031 INFO pipelines.ingest: loaded 10 transactions
+2026-09-25 06:00:56,290 INFO pipelines.ingest: AAPL: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,380 INFO pipelines.ingest: MSFT: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,466 INFO pipelines.ingest: GOOGL: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,533 INFO pipelines.ingest: AMZN: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,598 INFO pipelines.ingest: TSLA: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,674 INFO pipelines.ingest: NVDA: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,750 INFO pipelines.ingest: JPM: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,823 INFO pipelines.ingest: SPY: loaded 1434 rows (2021-01-01..2026-09-25)
+2026-09-25 06:00:56,863 INFO pipeline: ingestion success: run_id=20260925T060055-72617b rows=11472 quarantined=0 failed=none
+2026-09-25 06:00:56,863 INFO pipeline: running: /tmp/claude-0/venv/bin/dbt build --vars
+06:00:58  Running with dbt=1.12.5
+06:00:58  Registered adapter: duckdb=1.11.0
+06:00:59  Unable to do partial parsing because config vars, config profile, or config target have changed
+06:00:59  Unable to do partial parsing because profile has changed
+06:01:01  Found 16 models, 50 data tests, 4 sources, 505 macros
+06:01:01  
+06:01:01  Concurrency: 4 threads (target='dev')
+06:01:01  
+06:01:02  1 of 66 OK created sql view model staging.stg_dividends ........................ [OK in 0.21s]
+06:01:02  2 of 66 OK created sql view model staging.stg_prices ........................... [OK in 0.20s]
+06:01:02  3 of 66 OK created sql view model staging.stg_splits ........................... [OK in 0.20s]
+06:01:02  4 of 66 OK created sql view model staging.stg_tickers .......................... [OK in 0.21s]
+06:01:02  6 of 66 PASS positive_stg_dividends_dividend_per_share ......................... [PASS in 0.12s]
+06:01:02  8 of 66 PASS not_in_future_stg_prices_price_date ............................... [PASS in 0.11s]
+06:01:02  7 of 66 PASS unique_combination_of_columns_stg_dividends_symbol__ex_date ....... [PASS in 0.12s]
+06:01:02  5 of 66 OK created sql view model staging.stg_transactions ..................... [OK in 0.18s]
+06:01:02  9 of 66 PASS not_null_stg_prices_close ......................................... [PASS in 0.11s]
+06:01:02  10 of 66 PASS not_null_stg_prices_price_date ................................... [PASS in 0.10s]
+06:01:02  11 of 66 PASS not_null_stg_prices_symbol ....................................... [PASS in 0.11s]
+06:01:02  12 of 66 PASS positive_stg_prices_close ........................................ [PASS in 0.10s]
+06:01:02  13 of 66 PASS unique_combination_of_columns_stg_prices_symbol__price_date ...... [PASS in 0.10s]
+06:01:02  14 of 66 PASS within_range_stg_prices_volume__0 ................................ [PASS in 0.11s]
+06:01:02  15 of 66 PASS positive_stg_splits_split_ratio .................................. [PASS in 0.08s]
+06:01:02  16 of 66 PASS not_null_stg_tickers_symbol ...................................... [PASS in 0.08s]
+06:01:02  17 of 66 PASS unique_stg_tickers_symbol ........................................ [PASS in 0.09s]
+06:01:02  18 of 66 PASS accepted_values_stg_transactions_side__BUY__SELL ................. [PASS in 0.07s]
+06:01:02  19 of 66 PASS not_in_future_stg_transactions_trade_date ........................ [PASS in 0.08s]
+06:01:02  20 of 66 PASS not_null_stg_transactions_trade_date ............................. [PASS in 0.07s]
+06:01:02  22 of 66 PASS positive_stg_transactions_price .................................. [PASS in 0.08s]
+06:01:02  21 of 66 PASS not_null_stg_transactions_trade_id ............................... [PASS in 0.09s]
+06:01:02  23 of 66 PASS positive_stg_transactions_shares ................................. [PASS in 0.08s]
+06:01:02  24 of 66 PASS relationships_stg_transactions_symbol__symbol__ref_stg_tickers_ .. [PASS in 0.08s]
+06:01:02  25 of 66 PASS unique_stg_transactions_trade_id ................................. [PASS in 0.09s]
+06:01:02  27 of 66 OK created sql view model intermediate.int_daily_returns .............. [OK in 0.14s]
+06:01:02  26 of 66 OK created sql table model marts.dim_date ............................. [OK in 0.16s]
+06:01:02  29 of 66 OK created sql view model intermediate.int_transactions_split_adjusted  [OK in 0.13s]
+06:01:02  28 of 66 OK created sql table model marts.dim_ticker ........................... [OK in 0.13s]
+06:01:02  30 of 66 PASS assert_no_unexplained_price_jumps ................................ [PASS in 0.08s]
+06:01:02  31 of 66 PASS not_null_dim_date_date_day ....................................... [PASS in 0.08s]
+06:01:02  32 of 66 PASS unique_dim_date_date_day ......................................... [PASS in 0.08s]
+06:01:02  33 of 66 PASS assert_transaction_price_near_market ............................. [PASS in 0.08s]
+06:01:02  34 of 66 PASS positive_int_transactions_split_adjusted_split_factor ............ [PASS in 0.08s]
+06:01:02  35 of 66 PASS assert_every_ticker_has_prices ................................... [PASS in 0.06s]
+06:01:03  36 of 66 PASS not_null_dim_ticker_symbol ....................................... [PASS in 0.07s]
+06:01:03  37 of 66 PASS unique_dim_ticker_symbol ......................................... [PASS in 0.08s]
+06:01:03  39 of 66 OK created sql view model intermediate.int_trade_ledger ............... [OK in 0.07s]
+06:01:03  38 of 66 OK created sql table model marts.fct_daily_prices ..................... [OK in 0.12s]
+06:01:03  41 of 66 PASS within_range_int_trade_ledger_shares_after___1e_06 ............... [PASS in 0.09s]
+06:01:03  40 of 66 PASS unique_combination_of_columns_int_trade_ledger_symbol__seq ....... [PASS in 0.09s]
+06:01:03  43 of 66 PASS relationships_fct_daily_prices_price_date__date_day__ref_dim_date_  [PASS in 0.10s]
+06:01:03  42 of 66 PASS positive_fct_daily_prices_total_return_index ..................... [PASS in 0.10s]
+06:01:03  44 of 66 PASS relationships_fct_daily_prices_symbol__symbol__ref_dim_ticker_ ... [PASS in 0.08s]
+06:01:03  45 of 66 PASS unique_combination_of_columns_fct_daily_prices_symbol__price_date  [PASS in 0.08s]
+06:01:03  47 of 66 OK created sql table model marts.mart_ticker_risk ..................... [OK in 0.07s]
+06:01:03  46 of 66 OK created sql table model marts.fct_position_daily ................... [OK in 0.15s]
+06:01:03  48 of 66 PASS not_null_mart_ticker_risk_symbol ................................. [PASS in 0.09s]
+06:01:03  49 of 66 PASS unique_mart_ticker_risk_symbol ................................... [PASS in 0.09s]
+06:01:03  50 of 66 PASS not_null_fct_position_daily_close ................................ [PASS in 0.08s]
+06:01:03  51 of 66 PASS not_null_fct_position_daily_shares ............................... [PASS in 0.09s]
+06:01:03  53 of 66 PASS within_range_fct_position_daily_shares___1e_06 ................... [PASS in 0.06s]
+06:01:03  52 of 66 PASS unique_combination_of_columns_fct_position_daily_symbol__date .... [PASS in 0.06s]
+06:01:03  55 of 66 OK created sql table model marts.mart_holdings_current ................ [OK in 0.06s]
+06:01:03  54 of 66 OK created sql table model marts.fct_portfolio_daily .................. [OK in 0.10s]
+06:01:03  56 of 66 PASS not_null_mart_holdings_current_symbol ............................ [PASS in 0.10s]
+06:01:03  57 of 66 PASS unique_mart_holdings_current_symbol .............................. [PASS in 0.10s]
+06:01:03  58 of 66 PASS within_range_mart_holdings_current_weight__1__0 .................. [PASS in 0.10s]
+06:01:03  59 of 66 PASS assert_portfolio_reconciles_with_positions ....................... [PASS in 0.09s]
+06:01:03  60 of 66 PASS not_null_fct_portfolio_daily_date ................................ [PASS in 0.09s]
+06:01:03  61 of 66 PASS positive_fct_portfolio_daily_twr_index ........................... [PASS in 0.09s]
+06:01:03  62 of 66 PASS unique_fct_portfolio_daily_date .................................. [PASS in 0.07s]
+06:01:03  63 of 66 PASS within_range_fct_portfolio_daily_drawdown__1e_06___1 ............. [PASS in 0.06s]
+06:01:03  64 of 66 OK created sql table model marts.mart_monthly_returns ................. [OK in 0.03s]
+06:01:03  65 of 66 PASS not_null_mart_monthly_returns_month .............................. [PASS in 0.04s]
+06:01:03  66 of 66 PASS unique_mart_monthly_returns_month ................................ [PASS in 0.04s]
+06:01:03  
+06:01:03  Finished running 8 table models, 50 data tests, 8 view models in 0 hours 0 minutes and 2.33 seconds (2.33s).
+06:01:04  
+06:01:04  Completed successfully
+06:01:04  
+06:01:04  Done. PASS=66 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=66
+2026-09-25 06:01:04,789 INFO pipeline: running: /tmp/claude-0/venv/bin/dbt source freshness
+06:01:06  Running with dbt=1.12.5
+06:01:06  Registered adapter: duckdb=1.11.0
+06:01:07  Found 16 models, 50 data tests, 4 sources, 505 macros
+06:01:07  
+06:01:07  Concurrency: 4 threads (target='dev')
+06:01:07  
+06:01:07  1 of 1 PASS freshness of raw.prices ............................................ [PASS in 0.02s]
+06:01:07  
+06:01:07  Finished running 1 source in 0 hours 0 minutes and 0.14 seconds (0.14s).
+06:01:07  Done.

@@ -1,0 +1,90 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar spine with trading-day flags (trading days = benchmark trading days).
+    columns:
+      - name: date_day
+        tests: [unique, not_null]
+
+  - name: dim_ticker
+    description: One row per configured ticker with coverage stats.
+    columns:
+      - name: symbol
+        tests: [unique, not_null]
+
+  - name: fct_daily_prices
+    description: Daily prices and returns. Grain = symbol x trading day.
+    columns:
+      - name: symbol
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_ticker')
+                field: symbol
+      - name: price_date
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: total_return_index
+        tests: [positive]
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination: [symbol, price_date]
+
+  - name: fct_position_daily
+    description: Held position per symbol per trading day (average-cost basis).
+    columns:
+      - name: close
+        tests: [not_null]
+      - name: shares
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: -0.000001
+    tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination: [symbol, date]
+
+  - name: fct_portfolio_daily
+    description: Portfolio value, contributions, TWR and benchmark per trading day.
+    columns:
+      - name: date
+        tests: [unique, not_null]
+      - name: twr_index
+        tests: [positive]
+      - name: drawdown
+        tests:
+          - within_range:
+              arguments:
+                min_value: -1
+                max_value: 0.000001
+
+  - name: mart_holdings_current
+    description: Latest open positions with weights and P&L.
+    columns:
+      - name: symbol
+        tests: [unique, not_null]
+      - name: weight
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_monthly_returns
+    description: Monthly TWR for the portfolio vs the benchmark.
+    columns:
+      - name: month
+        tests: [unique, not_null]
+
+  - name: mart_ticker_risk
+    description: Trailing 1-year risk metrics per ticker.
+    columns:
+      - name: symbol
+        tests: [unique, not_null]
