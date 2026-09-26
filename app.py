@@ -41,25 +41,33 @@ class StatusLogHandler(logging.Handler):
 # --------------------------------------------------------------------------- data
 
 
-def bootstrap_warehouse() -> str | None:
+@st.cache_resource(show_spinner=False)
+def build_warehouse_once(path: str) -> str | None:
     """Build the warehouse on first start (e.g. a fresh Streamlit Cloud box).
+    cache_resource makes this run once per server: other visitors arriving
+    during the build wait for it instead of starting a second one.
     Falls back to the synthetic source if Yahoo is unreachable."""
-    wh_ok = CFG.warehouse_path.exists() and Warehouse(CFG.warehouse_path).has_marts()
-    if wh_ok:
+    try:
+        if run_pipeline(CFG) in (0, 2):
+            return None
+    except WarehouseBusyError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - surface any failure and fall back
+        if CFG.source == "sample":
+            raise
+        err = str(exc)
+    else:
+        err = "ingestion failed"
+    run_pipeline(load_config(source="sample"))
+    return f"Could not load live data ({err[:120]}), so the dashboard is showing synthetic sample data."
+
+
+def bootstrap_warehouse() -> str | None:
+    if CFG.warehouse_path.exists() and Warehouse(CFG.warehouse_path).has_marts():
         return None
-    with st.spinner(f"First run: building the warehouse from the '{CFG.source}' source…"):
-        try:
-            if run_pipeline(CFG) in (0, 2):
-                return None
-        except Exception as exc:  # noqa: BLE001 - surface any failure and fall back
-            if CFG.source == "sample":
-                raise
-            err = str(exc)
-        else:
-            err = "ingestion failed"
-        sample_cfg = load_config(source="sample")
-        run_pipeline(sample_cfg)
-        return f"Could not load live data ({err[:120]}), so the dashboard is showing synthetic sample data."
+    with st.spinner(f"First run: building the warehouse from the '{CFG.source}' source. "
+                    "This takes 1-2 minutes…"):
+        return build_warehouse_once(str(CFG.warehouse_path))
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -82,18 +90,24 @@ def load_all(path: str, _version: float) -> dict:
     }
 
 
-def load_when_free(attempts: int = 10, wait_seconds: float = 3.0) -> tuple[str | None, dict]:
-    """While a pipeline run is writing, DuckDB refuses readers from other
-    processes for a few seconds. Wait and retry instead of crashing."""
+def load_when_free(attempts: int = 60, wait_seconds: float = 3.0) -> tuple[str | None, dict]:
+    """While the pipeline is writing (a first-run build takes 1-2 minutes on a
+    small cloud server), DuckDB refuses readers. Wait and retry instead of crashing."""
+    waiting = st.empty()
     for attempt in range(attempts):
         try:
             note = bootstrap_warehouse()
-            return note, load_all(str(CFG.warehouse_path), os.path.getmtime(CFG.warehouse_path))
+            result = note, load_all(str(CFG.warehouse_path), os.path.getmtime(CFG.warehouse_path))
+            waiting.empty()
+            return result
         except WarehouseBusyError as exc:
             if attempt == attempts - 1:
+                waiting.empty()
                 st.warning(f"⏳ The warehouse is being updated right now, so it can't be read yet. {exc}\n\n"
                            "Reload this page in a minute.")
                 st.stop()
+            waiting.info("⏳ The data is being built or refreshed. The dashboard will appear by itself "
+                         f"in a moment… ({(attempt + 1) * wait_seconds:.0f}s)")
             time.sleep(wait_seconds)
     raise AssertionError("unreachable")
 

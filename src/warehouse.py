@@ -23,7 +23,7 @@ class Warehouse:
     def query(self, sql: str, params: list | None = None) -> pd.DataFrame:
         try:
             con = duckdb.connect(str(self.path), read_only=True)
-        except duckdb.IOException as exc:
+        except (duckdb.IOException, duckdb.ConnectionException) as exc:
             raise friendly_lock_error(exc) from exc
         with con:
             return con.execute(sql, params or []).df()

@@ -61,6 +61,10 @@ def pipeline_lock(warehouse_path: Path) -> Iterator[None]:
 
 def friendly_lock_error(exc: Exception) -> Exception:
     """Map DuckDB's file-lock IOException to WarehouseBusyError; leave others alone."""
+    if isinstance(exc, duckdb.ConnectionException) and "different configuration" in str(exc):
+        # Same process: e.g. the dashboard's first-run build is writing while
+        # another page load tries to read. Short-lived, so callers retry.
+        return WarehouseBusyError("The warehouse is being built or updated by this app right now.")
     if isinstance(exc, duckdb.IOException) and "lock" in str(exc).lower():
         holder = str(exc).split("(PID", 1)[-1].split(")", 1)[0].strip() if "(PID" in str(exc) else "unknown"
         return WarehouseBusyError(
