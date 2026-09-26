@@ -13,22 +13,23 @@ modeled with **dbt** into a star schema, checked by **50 data-quality tests**, s
 ![Dagster](https://img.shields.io/badge/orchestration-dagster-purple)
 ![Streamlit](https://img.shields.io/badge/dashboard-streamlit-red)
 
-![Dashboard overview](docs/screenshots/v2-01-overview.png)
+![Dashboard overview](docs/screenshots/app-01-overview.png)
 
 ---
 
 ## Contents
 
 1. [How it works](#how-it-works)
-2. [Run it on your computer](#run-it-on-your-computer)
-3. [The dashboard](#the-dashboard)
-4. [Data engineering](#data-engineering)
-5. [Data analytics](#data-analytics)
-6. [Use your own portfolio](#use-your-own-portfolio)
-7. [Testing](#testing)
-8. [Troubleshooting](#troubleshooting)
-9. [Project layout](#project-layout)
-10. [Limitations](#limitations)
+2. [Walkthrough: every step, with pictures](#walkthrough-every-step-with-pictures)
+3. [Run it on your computer](#run-it-on-your-computer)
+4. [The dashboard](#the-dashboard)
+5. [Data engineering](#data-engineering)
+6. [Data analytics](#data-analytics)
+7. [Use your own portfolio](#use-your-own-portfolio)
+8. [Testing](#testing)
+9. [Troubleshooting](#troubleshooting)
+10. [Project layout](#project-layout)
+11. [Limitations](#limitations)
 
 ---
 
@@ -52,6 +53,78 @@ modeled with **dbt** into a star schema, checked by **50 data-quality tests**, s
 
 The dashboard **only reads the warehouse**. It never calls Yahoo on page load, so it opens fast
 and keeps working when the data provider is down.
+
+---
+
+## Walkthrough: every step, with pictures
+
+All pictures below come from one real run of this project, started from an empty folder with the
+offline sample market (synthetic prices).
+
+### Step 1 · Load the data (`python -m pipelines.run`)
+
+The pipeline reads your trades, then downloads the full price history for every stock. Every row
+is checked on the way in, and the run is logged.
+
+![Step 1: first load](docs/screenshots/term-01-ingest.png)
+
+### Step 2 · Build the warehouse and test it (dbt)
+
+Straight after the load, dbt builds 16 models (staging → intermediate → marts) and runs 50 data
+tests. If any test fails, the run stops and the dashboard keeps the last good data.
+
+![Step 2: dbt build](docs/screenshots/term-02-dbt-build.png)
+
+This is how the models connect, from the raw tables on the left to the dashboard tables on the
+right (`dbt docs serve`):
+
+![dbt lineage graph](docs/screenshots/phase-dbt-lineage.png)
+
+### Step 3 · Run it again: only new days are loaded
+
+The second run fetches only the last few days for each stock (40 rows instead of 11,472), and
+nothing is duplicated.
+
+![Step 3: incremental load](docs/screenshots/term-03-incremental.png)
+
+### Step 4 · Schedule it (Dagster)
+
+Dagster runs the same pipeline as two steps, **load**, then **build and test**, on a weekday
+schedule, with retries. The run below took 17 seconds and passed its freshness check
+(`dagster dev -m pipelines.dagster_defs`).
+
+![Dagster assets](docs/screenshots/phase-dagster-assets.png)
+
+![Dagster run timeline](docs/screenshots/phase-dagster-run.png)
+
+### Step 5 · Look at the results (dashboard)
+
+`python -m streamlit run app.py` opens the dashboard. The **Overview** tab shows value vs money
+put in, profit, return vs the S&P 500, and allocation (picture at the top of this page). Further
+down are the per-stock returns, a concentration warning and the open positions:
+
+![Open positions](docs/screenshots/app-02-positions.png)
+
+The trade ledger shows each trade as entered and restated for later stock splits. For example,
+the 1 AMZN share bought at $3,022 counts as 20 shares at $151.10, and the 5 NVDA shares at $397.70
+count as 50 shares at $39.77:
+
+![Trade ledger](docs/screenshots/app-03-trade-ledger.png)
+
+The other tabs are shown in [The dashboard](#the-dashboard).
+
+### Step 6 · Ask questions in SQL
+
+`python -m analysis.run_queries` answers 10 business questions straight from the warehouse. Here
+are three of them: did we beat the market, which stocks made the profit, and the worst drawdowns:
+
+![Step 6: SQL answers](docs/screenshots/term-04-sql.png)
+
+### Step 7 · Check everything still works
+
+`pytest -q` runs 53 tests (about 1 minute, no internet needed), and `ruff check .` checks code style:
+
+![Step 7: tests](docs/screenshots/term-05-tests.png)
 
 ---
 
@@ -112,12 +185,23 @@ On Mac and Linux, the `Makefile` has short versions of these commands (`make pip
 | **Strategy Lab** | Lump sum vs monthly investing vs monthly with quarterly rebalancing (same money), efficient frontier with max-Sharpe and min-volatility picks, Monte Carlo projection of future value |
 | **Pipeline & Data Quality** | Last pipeline runs, data-test pass rate, freshness per stock, warehouse row counts, quarantined rows, and a **Run pipeline** button that shows live progress |
 
-| | |
-|---|---|
-| ![Performance](docs/screenshots/v2-02-performance.png) | ![Risk](docs/screenshots/v2-03-risk.png) |
-| ![Strategy Lab](docs/screenshots/v2-04-strategy-lab.png) | ![Pipeline & Data Quality](docs/screenshots/v2-05-pipeline-data-quality.png) |
+**Performance**: return vs the S&P 500, risk-adjusted ratios and monthly return heatmaps.
 
-*The screenshots use the sample market (synthetic prices).*
+![Performance tab](docs/screenshots/app-04-performance.png)
+
+**Risk**: drawdowns, rolling volatility and beta, value-at-risk in dollars, and correlation.
+
+![Risk tab](docs/screenshots/app-05-risk.png)
+
+**Strategy Lab**: the same money invested three ways, the efficient frontier, and a Monte Carlo projection.
+
+![Strategy Lab tab](docs/screenshots/app-06-strategy-lab.png)
+
+**Pipeline & Data Quality**: pipeline runs, data-test results, freshness and row counts, plus a button to run the pipeline.
+
+![Pipeline & Data Quality tab](docs/screenshots/app-07-pipeline-data-quality.png)
+
+*All screenshots use the sample market (synthetic prices).*
 
 ---
 
@@ -279,7 +363,7 @@ analysis/                   SQL business questions and runner
 notebooks/                  analysis report
 tests/                      pytest suite (unit + integration)
 .github/workflows/          CI and the daily scheduled pipeline
-docs/                       screenshots and a sample build log
+docs/                       screenshots of every step and a sample build log
 ```
 
 Older files from the first version of the project (`streamlit_advanced.py`, `dashboard*.py`,
