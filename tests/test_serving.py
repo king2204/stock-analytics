@@ -66,3 +66,20 @@ def test_failed_pipeline_run_from_dashboard_shows_error_instead_of_crashing(buil
     run_button.click().run()
     assert not at.exception, [e.value for e in at.exception]
     assert any("Pipeline failed" in e.value for e in at.error)
+
+
+def test_dashboard_waits_while_the_warehouse_is_being_written(built_config, monkeypatch):
+    """Reproduces the Streamlit Cloud first-start crash: another session holds a
+    write connection in the same process. The page must wait, then load."""
+    import threading
+
+    import duckdb
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.setenv("WAREHOUSE_PATH", str(built_config.warehouse_path))
+    monkeypatch.setenv("SOURCE", "sample")
+    writer = duckdb.connect(str(built_config.warehouse_path))
+    threading.Timer(4.0, writer.close).start()
+    at = AppTest.from_file(str(APP), default_timeout=180).run()
+    assert not at.exception, [e.value for e in at.exception]
+    assert any(m.label == "Portfolio value" for m in at.metric)

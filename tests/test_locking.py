@@ -49,3 +49,19 @@ def test_duckdb_lock_held_by_another_process_gives_plain_message(tmp_path):
         holder.wait()
     time.sleep(0.2)
     assert Warehouse(db).query("select 1 as x")["x"].iloc[0] == 1
+
+
+def test_read_while_same_process_is_writing_is_reported_as_busy(tmp_path):
+    """Streamlit serves all visitors from one process: a read-only query must not
+    crash while the first-run build holds a read-write connection."""
+    import duckdb
+
+    db = tmp_path / "same.duckdb"
+    writer = duckdb.connect(str(db))
+    writer.execute("create table t (x int)")
+    try:
+        with pytest.raises(WarehouseBusyError, match="being built or updated"):
+            Warehouse(db).query("select 1")
+    finally:
+        writer.close()
+    assert Warehouse(db).query("select 1 as x")["x"].iloc[0] == 1
